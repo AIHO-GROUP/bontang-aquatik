@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#169AC4">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bontang Akuatik">
+  <link rel="apple-touch-icon" href="assets/images/logo.webp">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/images/logo.webp">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profil Saya - Bontang Akuatik</title>
+  <meta name="description" content="Lihat dan perbarui data diri Anda di Bontang Akuatik.">
+  <meta name="robots" content="noindex, follow">
+
+  <link rel="icon" type="image/jpeg" href="assets/images/logo.webp">
+  <link rel="apple-touch-icon" href="assets/images/logo.webp">
+
+  <link rel="stylesheet" href="assets/css/global.css">
+  <link rel="stylesheet" href="assets/css/navbar.css">
+  <link rel="stylesheet" href="assets/css/peserta.css">
+  <link rel="stylesheet" href="assets/css/profile.css">
+  <link rel="stylesheet" href="assets/css/pwa.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+</head>
+
+<body>
+
+  <div class="dashboard">
+    <div class="container">
+
+      <div class="dashboard-header">
+        <div>
+          <h1>Profil <span id="ph-nama">Saya</span></h1>
+          <p>Lihat dan perbarui data diri Anda</p>
+        </div>
+        <div class="dashboard-header-right">
+          <a href="peserta.html" class="btn btn-accent btn-sm">Dashboard</a>
+          <div class="kelas-badge">No. Peserta: <span id="ph-nomor">-</span></div>
+        </div>
+      </div>
+
+      <!-- Skeleton shimmer saat memuat -->
+      <div id="profile-skeleton" class="profile-skeleton">
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-card"></div>
+      </div>
+
+      <!-- Konten profil -->
+      <form id="profile-form" class="profile-wrap hidden" autocomplete="off">
+
+        <section class="dashboard-section">
+          <div class="section-head"><h2>Data Diri</h2></div>
+          <div class="profile-grid">
+            <div class="form-group">
+              <label>Nama Lengkap</label>
+              <input type="text" id="pf-nama_lengkap" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label>Username <small>(tidak dapat diubah)</small></label>
+              <input type="text" id="pf-username" class="form-control" disabled>
+            </div>
+            <div class="form-group">
+              <label>Nomor WhatsApp</label>
+              <input type="tel" id="pf-nomor_whatsapp" class="form-control" inputmode="numeric">
+            </div>
+            <div class="form-group">
+              <label>Jenis Kelamin</label>
+              <select id="pf-jenis_kelamin" class="form-control">
+                <option value="Laki-laki">Laki-laki</option>
+                <option value="Perempuan">Perempuan</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Tempat Lahir</label>
+              <input type="text" id="pf-tempat_lahir" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Tanggal Lahir</label>
+              <input type="date" id="pf-tanggal_lahir" class="form-control">
+            </div>
+          </div>
+        </section>
+
+        <section class="dashboard-section">
+          <div class="section-head"><h2>Data Sekolah</h2></div>
+          <div class="profile-grid">
+            <div class="form-group">
+              <label>Asal Sekolah</label>
+              <input type="text" id="pf-asal_sekolah" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Kelas Sekolah</label>
+              <input type="text" id="pf-kelas_sekolah" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>Wali Kelas</label>
+              <input type="text" id="pf-wali_kelas" class="form-control">
+            </div>
+          </div>
+        </section>
+
+        <section class="dashboard-section">
+          <div class="section-head"><h2>Data Pelatihan <small>(hanya admin yang dapat mengubah)</small></h2></div>
+          <div class="profile-grid">
+            <div class="form-group">
+              <label>Kelas / Grup</label>
+              <input type="text" id="pf-kelas" class="form-control" disabled>
+            </div>
+            <div class="form-group">
+              <label>Kelompok Umur</label>
+              <input type="text" id="pf-kelompok_umur" class="form-control" disabled>
+            </div>
+            <div class="form-group">
+              <label>Tanggal Mulai</label>
+              <input type="text" id="pf-tanggal_mulai" class="form-control" disabled>
+            </div>
+            <div class="form-group">
+              <label>Tanggal Akhir</label>
+              <input type="text" id="pf-tanggal_akhir" class="form-control" disabled>
+            </div>
+          </div>
+        </section>
+
+        <section class="dashboard-section">
+          <div class="section-head"><h2>Keamanan</h2></div>
+          <p class="profile-hint">Kosongkan kolom password bila tidak ingin mengubahnya.</p>
+          <div class="profile-grid">
+            <div class="form-group">
+              <label>Password Baru</label>
+              <div class="password-wrap">
+                <input type="password" id="pf-password" class="form-control" placeholder="Minimal 6 karakter" autocomplete="new-password">
+                <button type="button" class="password-toggle" data-password-toggle="pf-password"></button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Konfirmasi Password Baru</label>
+              <div class="password-wrap">
+                <input type="password" id="pf-password2" class="form-control" placeholder="Ulangi password baru" autocomplete="new-password">
+                <button type="button" class="password-toggle" data-password-toggle="pf-password2"></button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="profile-actions">
+          <button type="button" id="pf-reset" class="btn btn-secondary">Batalkan Perubahan</button>
+          <button type="submit" id="pf-save" class="btn btn-primary">Simpan Perubahan</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <script src="assets/js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="assets/js/utils.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/db.js"></script>
+  <script src="assets/js/crud-api.js"></script>
+  <script src="assets/js/sync.js"></script>
+  <script src="assets/js/schedule.js"></script>
+  <script src="assets/js/business-logic.js"></script>
+  <script src="assets/js/components/ui.js"></script>
+  <script src="assets/js/peserta-settings.js"></script>
+  <script src="assets/js/profile.js"></script>
+  <script src="assets/js/pwa.js"></script>
+</body>
+</html>

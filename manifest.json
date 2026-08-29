@@ -1,0 +1,52 @@
+{
+  "name": "Bontang Akuatik — Sekolah Renang Profesional",
+  "short_name": "Bontang Akuatik",
+  "description": "Pelatihan renang profesional di Bontang. Akses jadwal, daftar kelas, dan pantau progres latihan dari beranda ponsel Anda.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#FFFFFF",
+  "lang": "id-ID",
+  "dir": "ltr",
+  "categories": ["sports", "education", "swimming", "club"],
+  "icons": [
+    { "src": "assets/images/logo.png", "sizes": "72x72",   "type": "image/png", "purpose": "any" },
+    { "src": "assets/images/logo.png", "sizes": "96x96",   "type": "image/png", "purpose": "any" },
+    { "src": "assets/images/logo.png", "sizes": "128x128", "type": "image/png", "purpose": "any" },
+    { "src": "assets/images/logo.png", "sizes": "144x144", "type": "image/png", "purpose": "any" },
+    { "src": "assets/images/logo.png", "sizes": "152x152", "type": "image/png", "purpose": "any" },
+    { "src": "assets/images/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/images/logo.png", "sizes": "256x256", "type": "image/png", "purpose": "any" },
+    { "src": "assets/images/logo.png", "sizes": "384x384", "type": "image/png", "purpose": "any" },
+    { "src": "assets/images/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/images/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/images/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Daftar Sekarang",
+      "short_name": "Daftar",
+      "description": "Pendaftaran kelas renang",
+      "url": "./registrasi.html",
+      "icons": [{ "src": "assets/images/logo.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Jadwal Peserta",
+      "short_name": "Jadwal",
+      "description": "Lihat jadwal latihan terbaru",
+      "url": "./peserta.html",
+      "icons": [{ "src": "assets/images/logo.png", "sizes": "96x96" }]
+    }
+  ],
+  "screenshots":[
+    {
+    "src":"assets/shot1.png",
+    "sizes":"1080x1920",
+    "type":"image/png"
+    }
+  ],
+  "prefer_related_applications": false
+}

@@ -1,0 +1,80 @@
+/* ============================================================
+   Profil Peserta
+   ============================================================ */
+.profile-wrap { padding-bottom: 40px; }
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+}
+@media (max-width: 640px) {
+  .profile-grid { grid-template-columns: 1fr; }
+}
+
+.profile-wrap .form-group { margin-bottom: 0; }
+.profile-wrap label small { font-weight: 400; color: var(--color-text-secondary); font-size: 11px; }
+
+.profile-hint {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: 14px;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+@media (max-width: 480px) {
+  .profile-actions { flex-direction: column-reverse; }
+  .profile-actions .btn { width: 100%; }
+}
+
+/* Password toggle (selaras dengan auth) */
+.profile-wrap .password-wrap { position: relative; }
+.profile-wrap .password-wrap input { padding-right: 44px; }
+.profile-wrap .password-toggle {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; font-size: 18px; padding: 4px;
+  line-height: 1; border-radius: var(--radius-sm);
+}
+.profile-wrap .password-toggle:hover { background: var(--color-bg-section); }
+
+/* ============================================================
+   Shimmer / Skeleton Loading (pengganti spinner saat memuat)
+   ============================================================ */
+.profile-skeleton { display: flex; flex-direction: column; gap: 18px; }
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-bg-section, #eef1f4);
+  border-radius: var(--radius-md, 12px);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 100%
+  );
+  animation: shimmer 1.3s infinite;
+}
+[data-theme="dark"] .skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+}
+.skeleton-card { height: 180px; }
+.skeleton-line { height: 14px; margin-bottom: 10px; }
+.skeleton-line.short { width: 45%; }
+@keyframes shimmer { 100% { transform: translateX(100%); } }

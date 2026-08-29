@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#169AC4">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bontang Akuatik">
+  <link rel="apple-touch-icon" href="assets/images/logo.webp">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/images/logo.webp">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Bontang Akuatik</title>
+  <meta name="description" content="Masuk ke akun Bontang Akuatik Anda untuk melihat jadwal latihan, melakukan absensi, dan rapor latihan.">
+  <meta name="robots" content="noindex, follow">
+
+  <link rel="icon" type="image/jpeg" href="assets/images/logo.webp">
+  <link rel="apple-touch-icon" href="assets/images/logo.webp">
+
+  <link rel="stylesheet" href="assets/css/global.css">
+  <link rel="stylesheet" href="assets/css/navbar.css">
+  <link rel="stylesheet" href="assets/css/auth.css">
+  <link rel="stylesheet" href="assets/css/pwa.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+
+</head>
+
+<body>
+
+  <div class="auth-page">
+    <div class="auth-container">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div class="icon">🔐</div>
+          <h1>Selamat Datang Kembali</h1>
+          <p>Masuk untuk mengakses dashboard Anda</p>
+        </div>
+        <div class="auth-body">
+          <form id="form-login">
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" name="username" class="form-control" required placeholder="Nama Panggilan Anda" autocomplete="username">
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <div class="password-wrap">
+                <input type="password" name="password" id="password" class="form-control" required placeholder="Password Anda" autocomplete="current-password">
+                <button id="togglePassword" class="password-toggle" type="button"></button>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Masuk</button>
+          </form>
+          <div class="auth-forgot"><a href="forgot-password.html">Lupa password?</a></div>
+        </div>
+        <div class="auth-footer">
+          Belum punya akun? <a href="registrasi.html">Daftar sekarang</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="assets/js/utils.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/db.js"></script>
+  <script src="assets/js/crud-api.js"></script>
+  <script src="assets/js/sync.js"></script>
+  <script src="assets/js/schedule.js"></script>
+  <script src="assets/js/business-logic.js"></script>
+  <script src="assets/js/components/ui.js"></script>
+  <script src="assets/js/login.js"></script>
+  <script src="assets/js/pwa.js"></script>
+</body>
+</html>

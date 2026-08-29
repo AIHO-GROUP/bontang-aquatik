@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="theme-color" content="#169AC4">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bontang Akuatik">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="index, follow">
+  
+  <!-- SEO -->
+  <meta name="description" content="Formulir pendaftaran kelas renang Bontang Akuatik. Pilih kelas Grup A, B, atau C.">
+  <meta name="keywords" content="daftar renang bontang, registrasi Bontang Akuatik, pendaftaran kelas renang">
+  
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="assets/images/logo.webp">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/images/logo.webp">
+  <link rel="icon" type="image/png" href="assets/images/logo.png">
+  <link rel="stylesheet" href="assets/css/global.css">
+  <link rel="stylesheet" href="assets/css/navbar.css">
+  <link rel="stylesheet" href="assets/css/auth.css">
+  <link rel="stylesheet" href="assets/css/pwa.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  
+  <title>Daftar Kelas Renang - Bontang Akuatik</title>
+</head>
+
+<body>
+  <div class="auth-page">
+    <div class="auth-container" style="max-width: 760px;">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div class="icon">📝</div>
+          <h1>Daftar Kelas Renang</h1>
+          <p>Lengkapi data Anda untuk mulai latihan di Bontang Akuatik</p>
+        </div>
+        
+        <div class="auth-body">
+          <!-- Stepper untuk UX -->
+          <div class="stepper" id="form-stepper">
+            <div class="step active" data-step="1"><span class="step-num">1</span><span class="step-label">Akun</span></div>
+            <div class="step" data-step="2"><span class="step-num">2</span><span class="step-label">Data Pribadi</span></div>
+            <div class="step" data-step="3"><span class="step-num">3</span><span class="step-label">Sekolah</span></div>
+            <div class="step" data-step="4"><span class="step-num">4</span><span class="step-label">Grup</span></div>
+          </div>
+
+          <form id="form-registrasi" autocomplete="on">
+
+            <!-- STEP 1: Akun -->
+            <div class="form-step active" data-step="1">
+              <h4 class="form-section-title">Data Akun</h4>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label>Nama Lengkap *</label>
+                  <input type="text" name="nama_lengkap" class="form-control" required placeholder="e.g., Muhammad Ghazi Al Ghifari" autocomplete="name">
+                </div>
+                <div class="form-group">
+                  <label>Nama Panggilan *</label>
+                  <input type="text" name="username" class="form-control" required placeholder="e.g., Ghazi" autocomplete="username">
+                </div>
+              </div>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label>Password *</label>
+                  <div class="password-wrap">
+                    <input type="password" name="password" id="password" class="form-control" required minlength="6" placeholder="Silahkan Buat Password" autocomplete="password">
+                    <button id="togglePassword" class="password-toggle" type="button"></button>
+                  </div>
+                </div>
+                <div class="form-group">
+                    <label>Nomor WhatsApp *</label>
+                    <div class="phone-input-group">
+                        <span class="phone-prefix">+62</span>
+                        <input type="tel" name="nomor_whatsapp" class="phone-input" placeholder="81234567890" inputmode="numeric" maxlength="12" required>
+                    </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 2: Data Pribadi -->
+            <div class="form-step" data-step="2">
+              <h4 class="form-section-title">Data Pribadi</h4>
+              <div class="form-grid-1">
+                <div class="form-group">
+                  <label>Jenis Kelamin *</label>
+                  <select name="jenis_kelamin" id="jenis_kelamin" class="form-control" required>
+                    <option value="">- Pilih -</option>
+                    <option value="Laki-laki">Laki-laki</option>
+                    <option value="Perempuan">Perempuan</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label>Tempat Lahir *</label>
+                  <input type="text" name="tempat_lahir" class="form-control" required placeholder="e.g., Bontang">
+                </div>
+                <div class="form-group">
+                  <label>Tanggal Lahir *</label>
+                  <input type="date" name="tanggal_lahir" id="tanggal_lahir" class="form-control" required>
+                  <p class="form-helper" id="kelompok-umur-preview"></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 3: Sekolah -->
+            <div class="form-step" data-step="3">
+              <h4 class="form-section-title">Data Sekolah</h4>
+              <div class="form-group">
+                <label>Asal Sekolah *</label>
+                <input type="text" name="asal_sekolah" class="form-control" required placeholder="e.g., SD 1 Yayasan Pupuk Kaltim">
+              </div>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label>Kelas Sekolah *</label>
+                  <input type="text" name="kelas_sekolah" class="form-control" required placeholder="e.g., 4A">
+                </div>
+                <div class="form-group">
+                  <label>Wali Kelas *</label>
+                  <input type="text" name="wali_kelas" class="form-control" required placeholder="e.g., Pak Budi">
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 4: Kelas Renang -->
+            <div class="form-step" data-step="4">
+              <!-- Info kelas referensi -->
+              <div class="class-info-banner">
+                <h4>Info Kelas Tersedia</h4>
+                <div class="class-info-list" id="class-info-list"></div>
+              </div>
+              <h4 class="form-section-title">Pilihan Kelas Renang</h4>
+              <div class="form-group">
+                <label>Pilih Kelas Renang *</label>
+                <select name="kelas" id="kelas" class="form-control" required></select>
+              </div>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label>Mulai Pelatihan Sejak *</label>
+                  <input type="date" name="tanggal_mulai" id="tanggal_mulai" class="form-control" required>
+                </div>
+                <div class="form-group">
+                  <label>Durasi (bulan) *</label>
+                  <input type="number" name="durasi" id="durasi" class="form-control" required min="1" max="24" value="1" required placeholder="Periode Pelatihan">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Pelatihan Berakhir Pada</label>
+                <input type="text" id="tanggal_akhir_display" class="form-control" readonly placeholder="Otomatis terisi sesuai durasi">
+              </div>
+            </div>
+
+            <!-- Navigation buttons -->
+            <div class="form-nav">
+              <button type="button" class="btn btn-secondary" id="btn-prev" disabled>← Sebelumnya</button>
+              <button type="button" class="btn btn-primary" id="btn-next">Selanjutnya →</button>
+              <button type="submit" class="btn btn-accent hidden" id="btn-submit">Daftar Sekarang →</button>
+            </div>
+          </form>
+        </div>
+        <div class="auth-footer">
+          Sudah punya akun? <a href="login.html">Login di sini</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="assets/js/supabase-client.js"></script>
+  <script src="assets/js/utils.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/db.js"></script>
+  <script src="assets/js/crud-api.js"></script>
+  <script src="assets/js/sync.js"></script>
+  <script src="assets/js/schedule.js"></script>
+  <script src="assets/js/business-logic.js"></script>
+  <script src="assets/js/components/ui.js"></script>
+  <script src="assets/js/registrasi.js"></script>
+  <script src="assets/js/pwa.js"></script>
+</body>
+</html>

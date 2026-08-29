@@ -1,0 +1,403 @@
+/* ================== DASHBOARD PESERTA ================== */
+.dashboard {
+  min-height: calc(100vh - 70px); background: var(--color-bg);
+  padding: 30px 0 60px;
+}
+
+.dashboard-header {
+  background: var(--gradient-header); color: #fff;
+  padding: 32px 28px; border-radius: var(--radius-lg);
+  margin-bottom: 24px;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 20px;
+  position: relative; overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+.dashboard-header::before {
+  content: ''; position: absolute; top: -50%; right: -10%;
+  width: 350px; height: 350px;
+  background: radial-gradient(circle, rgba(255, 106, 0, 0.20) 0%, transparent 65%);
+  pointer-events: none;
+}
+.dashboard-header > * { position: relative; z-index: 2; }
+.dashboard-header h1 { color: #fff; font-size: 24px; margin-bottom: 4px; letter-spacing: -0.3px; }
+.dashboard-header h1 span { color: var(--color-accent); }
+.dashboard-header p { color: rgba(255, 255, 255, 0.85); font-size: 14px; }
+
+.dashboard-header-right {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+
+#btn-rapor {
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(255, 106, 0, 0.35);
+}
+
+.dashboard-header .kelas-badge {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  padding: 10px 18px; border-radius: 999px;
+  font-size: 13px; font-weight: 600;
+  backdrop-filter: blur(10px); color: #fff;
+}
+.dashboard-header .kelas-badge span { color: var(--color-accent); }
+
+/* Stats */
+.stats-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 18px; margin-bottom: 30px;
+}
+.stat-card {
+  background: var(--color-card); border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); padding: 24px;
+  position: relative; overflow: hidden; transition: var(--transition);
+}
+.stat-card:hover {
+  border-color: var(--color-primary); transform: translateY(-2px); box-shadow: var(--shadow-md);
+}
+.stat-card::before {
+  content: ''; position: absolute; top: 0; left: 0;
+  width: 4px; height: 100%; background: var(--color-primary);
+}
+.stat-card.success::before { background: var(--color-success); }
+.stat-card.warning::before { background: var(--color-accent); }
+.stat-card .stat-label {
+  font-size: 11px; color: var(--color-text-secondary);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 10px; font-weight: 600;
+}
+.stat-card .stat-value {
+  font-size: 32px; font-weight: 800;
+  color: var(--color-text-heading); line-height: 1.1; letter-spacing: -1px;
+}
+.stat-card .stat-sub { font-size: 12px; color: var(--color-text-secondary); margin-top: 6px; }
+
+.progress-bar {
+  height: 8px; background: var(--color-bg-section);
+  border-radius: 999px; overflow: hidden;
+  margin-top: 12px; border: 1px solid var(--color-border);
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  border-radius: 999px; transition: width 0.6s ease;
+  box-shadow: 0 0 10px rgba(22, 154, 196, 0.4);
+}
+
+/* Section */
+.dashboard-section {
+  background: var(--color-card); border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); padding: 26px; margin-bottom: 24px;
+}
+.dashboard-section h2 {
+  font-size: 18px; margin-bottom: 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+
+/* Jadwal cards */
+.jadwal-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;
+}
+.jadwal-card {
+  background: var(--color-bg-section); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: 20px;
+  transition: var(--transition); position: relative;
+}
+.jadwal-card:hover {
+  border-color: var(--color-primary); box-shadow: var(--shadow-md); transform: translateY(-2px);
+}
+.jadwal-date {
+  font-size: 12px; color: var(--color-accent);
+  font-weight: 700; margin-bottom: 8px;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.jadwal-card h4 { font-size: 16px; margin-bottom: 12px; }
+.jadwal-info {
+  display: flex; flex-direction: column; gap: 8px;
+  font-size: 13px; color: var(--color-text-secondary); margin-bottom: 16px;
+}
+.jadwal-info span { display: flex; align-items: center; gap: 8px; }
+
+.jadwal-actions {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+}
+.jadwal-card .btn-accent { box-shadow: 0 3px 10px rgba(255, 106, 0, 0.30); }
+
+.empty-state {
+  text-align: center; padding: 50px 20px; color: var(--color-text-secondary);
+}
+.empty-state .icon { font-size: 52px; margin-bottom: 14px; opacity: 0.4; }
+
+/* Header section dengan badge count */
+.section-head {
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 10px; margin-bottom: 16px;
+}
+.section-head h2 { margin-bottom: 0; }
+.jadwal-count {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border: 1px solid rgba(22, 154, 196, 0.3);
+  padding: 4px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Wrapper kanan section-head: counter + toggle tampilan grid/kalender */
+.section-head-actions {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+#jadwal-view-toggle button { white-space: nowrap; }
+
+.jadwal-card.aktif { border-left: 4px solid var(--color-success); }
+.jadwal-card.pending { border-left: 4px solid var(--color-warning); }
+.jadwal-card.cancel { border-left: 4px solid var(--color-danger); opacity: 0.7; }
+.jadwal-card .jadwal-head {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.jadwal-card .jadwal-detail {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  font-size: 13px; color: var(--color-text-secondary);
+  margin-bottom: 14px;
+}
+.jadwal-card .jadwal-detail span { display: flex; align-items: center; gap: 6px; }
+.jadwal-badge {
+  font-size: 11px; font-weight: 700;
+  padding: 3px 10px; border-radius: 999px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.jadwal-badge.aktif {
+  background: var(--badge-success-bg); color: var(--badge-success-text);
+  border: 1px solid var(--badge-success-border);
+}
+.jadwal-badge.pending {
+  background: var(--badge-warning-bg); color: var(--badge-warning-text);
+  border: 1px solid var(--badge-warning-border);
+}
+.jadwal-badge.cancel {
+  background: var(--badge-danger-bg); color: var(--badge-danger-text);
+  border: 1px solid var(--badge-danger-border);
+}
+.jadwal-badge.personal {
+  background: var(--color-accent-soft); color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+}
+/* Dipakai bersama class .badge dasar (global.css) di grid card, hari kalender & reminder card */
+.badge-personal {
+  background: var(--color-accent-soft); color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.jadwal-status-done {
+  padding: 8px 14px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600;
+}
+.jadwal-status-done.success { background: var(--badge-success-bg); color: var(--badge-success-text); }
+.jadwal-status-done.info { background: var(--badge-info-bg); color: var(--badge-info-text); }
+.jadwal-status-done.muted { background: var(--color-bg-section); color: var(--color-text-secondary); }
+.jadwal-status-done small { display: block; font-weight: 400; opacity: 0.8; margin-top: 4px; }
+
+/* ============== RAPOR DISPLAY (Modal) ============== */
+.rapor-display { padding: 4px 0; }
+.rapor-section { margin-bottom: 20px; }
+.rapor-section-title {
+  margin: 0 0 8px;
+  font-size: 15px; font-weight: 700;
+  color: var(--color-primary);
+}
+.rapor-periode {
+  font-size: 13px; color: var(--color-text-secondary);
+  margin: 0 0 12px;
+}
+.rapor-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px;
+}
+.rapor-table th,
+.rapor-table td {
+  border: 1px solid var(--color-border-strong);
+  padding: 8px 10px; text-align: center;
+}
+.rapor-table th {
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  font-weight: 700; font-size: 12px;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.rapor-table td:nth-child(2) {
+  text-align: left; font-weight: 600;
+  color: var(--color-text-heading);
+}
+.rapor-field { margin-bottom: 12px; }
+.rapor-field label {
+  display: block; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+}
+.rapor-value-box {
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  background: var(--color-bg-section);
+  font-size: 14px; color: var(--color-text-main);
+  min-height: 36px;
+}
+.rapor-value-box.tall { min-height: 70px; }
+.rapor-pelatih {
+  text-align: right; font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 10px 0 0;
+}
+
+@media (max-width: 768px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .dashboard-header { padding: 24px 22px; flex-direction: column; align-items: flex-start; }
+  .dashboard-header-right { width: 100%; }
+  #btn-rapor { flex: 1; }
+  .rapor-table { font-size: 11px; }
+  .rapor-table th, .rapor-table td { padding: 6px 4px; }
+  .jadwal-card .jadwal-detail { font-size: 12px; gap: 10px; }
+}
+/* =====================================================================
+   PESERTA ADD-ONS (Fase 3) — reminder, berita, kalender, settings.
+   ===================================================================== */
+
+/* ---------- JADWAL PERLU DITINDAKLANJUTI ----------
+   UI bersih senada dengan .task-section di halaman admin: header + badge
+   jumlah, lalu deretan kartu yang bisa discroll horizontal. Klik kartu
+   membuka modal absen/izin (openAbsenModal). Section otomatis sembunyi
+   bila tidak ada jadwal yang perlu direspons. */
+.reminder-section {
+  margin: 4px 0 22px; padding: 18px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+  animation: fadeIn .35s ease;
+}
+.reminder-section-head { margin-bottom: 14px; }
+.reminder-section-title {
+  display: flex; align-items: center; gap: 9px; font-size: 17px;
+  color: var(--color-text-heading); margin: 0;
+}
+.reminder-count-badge {
+  font-size: 12px; font-weight: 700; min-width: 22px; height: 22px; padding: 0 7px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--color-accent); color: #fff; border-radius: 999px;
+}
+.reminder-section-sub { font-size: 12.5px; color: var(--color-text-secondary); margin: 4px 0 0; }
+
+.reminder-scroller {
+  display: flex; gap: 13px; overflow-x: auto; padding: 4px 2px 10px;
+  scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.reminder-scroller::-webkit-scrollbar { height: 7px; }
+.reminder-scroller::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 999px; }
+
+.reminder-card {
+  scroll-snap-align: start; flex: 0 0 clamp(230px, 78vw, 280px);
+  background: var(--color-card); border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-accent); border-radius: var(--radius-md);
+  padding: 14px 15px; cursor: pointer; transition: var(--transition);
+  display: flex; flex-direction: column; gap: 8px; position: relative;
+}
+.reminder-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-left-color: var(--color-primary); }
+.reminder-card:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.reminder-card.is-today { border-left-color: var(--color-danger); }
+.reminder-card__tag {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+  padding: 3px 9px; border-radius: 999px;
+  background: var(--badge-info-bg); color: var(--badge-info-text);
+}
+.reminder-card.is-today .reminder-card__tag { background: var(--badge-danger-bg); color: var(--badge-danger-text); }
+.reminder-card__title {
+  font-size: 15px; font-weight: 700; color: var(--color-text-heading); line-height: 1.3;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.reminder-card__meta { font-size: 12.5px; color: var(--color-text-secondary); display: flex; flex-direction: column; gap: 3px; }
+.reminder-card__cta {
+  margin-top: 4px; font-size: 12.5px; font-weight: 600; color: var(--color-primary);
+  display: flex; align-items: center; gap: 5px;
+}
+
+/* ---------- BERITA (req #6) ---------- */
+.berita-scroller {
+  display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 12px;
+  scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+}
+.berita-scroller::-webkit-scrollbar { height: 7px; }
+.berita-scroller::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 999px; }
+.berita-card {
+  scroll-snap-align: start; flex: 0 0 clamp(240px, 80vw, 300px);
+  background: var(--color-card); border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); padding: 16px; cursor: pointer;
+  transition: var(--transition); display: flex; flex-direction: column; gap: 7px;
+}
+.berita-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--color-primary); }
+.berita-card:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.berita-card__date { font-size: 12px; font-weight: 600; color: var(--color-text-subheading); }
+.berita-card__title { font-size: 16px; font-weight: 700; color: var(--color-text-heading); line-height: 1.3; }
+.berita-card__excerpt { font-size: 13.5px; color: var(--color-text-secondary); line-height: 1.5; }
+.berita-card__cta { margin-top: auto; font-size: 13px; font-weight: 600; color: var(--color-primary); }
+.berita-modal-date { font-size: 13px; color: var(--color-text-subheading); font-weight: 600; margin-bottom: 12px; }
+.berita-modal-desc { font-size: 14.5px; line-height: 1.65; color: var(--color-text-main); white-space: pre-wrap; }
+
+/* ---------- KALENDER JADWAL (req #9) ---------- */
+.cal-wrap { animation: fadeIn .3s ease; }
+.cal-head { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 6px; }
+.cal-title { font-size: 17px; font-weight: 700; color: var(--color-text-heading); min-width: 170px; text-align: center; }
+.cal-nav {
+  width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--color-border);
+  background: var(--color-card); color: var(--color-text-heading); font-size: 20px; cursor: pointer;
+  transition: var(--transition); line-height: 1;
+}
+.cal-nav:hover { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+.cal-today-row { text-align: center; margin-bottom: 12px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.cal-weekdays { margin-bottom: 6px; }
+.cal-weekday { text-align: center; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); padding: 4px 0; }
+.cal-cell {
+  aspect-ratio: 1 / 1; border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-card); padding: 6px; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start; gap: 4px; transition: var(--transition); position: relative;
+}
+.cal-cell--empty { border: none; background: transparent; }
+.cal-cell.has-events { cursor: pointer; }
+.cal-cell.has-events:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); border-color: var(--color-primary); }
+.cal-cell.has-events:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.cal-cell.is-today { border-color: var(--color-primary); box-shadow: inset 0 0 0 1px var(--color-primary); }
+.cal-cell.is-today .cal-daynum { color: var(--color-primary); font-weight: 800; }
+.cal-daynum { font-size: 14px; font-weight: 600; color: var(--color-text-main); }
+.cal-dots { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; justify-content: center; }
+.cal-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.cal-dot.aktif { background: var(--color-success); }
+.cal-dot.pending { background: var(--color-warning); }
+.cal-dot.cancel { background: var(--color-danger); }
+.cal-more { font-size: 10px; font-weight: 700; color: var(--color-text-secondary); }
+.cal-legend { display: flex; gap: 16px; justify-content: center; margin-top: 14px; font-size: 12.5px; color: var(--color-text-secondary); flex-wrap: wrap; }
+.cal-legend span { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 480px) {
+  .cal-grid { gap: 4px; }
+  .cal-cell { padding: 3px; border-radius: var(--radius-sm); }
+  .cal-daynum { font-size: 12px; }
+  .cal-dot { width: 5px; height: 5px; }
+}
+/* daftar sesi dalam modal hari */
+.cal-day-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.cal-day-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-bg-section);
+}
+.cal-day-item.is-personal { border-left: 3px solid var(--color-accent); }
+.cal-day-meta { font-size: 12.5px; color: var(--color-text-secondary); margin-top: 3px; }
+.cal-day-action { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
+/* ---------- SETTINGS MODAL (req #9) ---------- */
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 0; }
+.settings-row__label strong { display: block; font-size: 14.5px; color: var(--color-text-heading); }
+.settings-row__label small { font-size: 12px; color: var(--color-text-secondary); }
+.settings-divider { border: none; border-top: 1px solid var(--color-border); margin: 12px 0; }
+.settings-action { margin-top: 10px; }
+.contact-channel-row { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.nav-settings-btn { display: inline-flex; align-items: center; justify-content: center; }
