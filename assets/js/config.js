@@ -9,8 +9,8 @@ const CONFIG = {
   // SUPABASE_URL  : contoh https://xxxxxxxxxxxx.supabase.co
   // SUPABASE_ANON_KEY : kunci "anon public" (BUKAN service_role) — aman dipakai di browser,
   //                      hak aksesnya diatur lewat Row Level Security (lihat 01_schema.sql).
-  SUPABASE_URL: 'GANTI_DENGAN_SUPABASE_URL_ANDA',
-  SUPABASE_ANON_KEY: 'GANTI_DENGAN_SUPABASE_ANON_KEY_ANDA',
+  SUPABASE_URL: 'https://eenudyixapvgbeosacgt.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlbnVkeWl4YXB2Z2Jlb3NhY2d0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5OTczMTQsImV4cCI6MjEwMzU3MzMxNH0.aLjmWOsudUHrP26E6Nxf3FZqLXuuCEXIdNuQYOokHsE',
 
   // Brand
   BRAND_NAME: 'Bontang Akuatik',

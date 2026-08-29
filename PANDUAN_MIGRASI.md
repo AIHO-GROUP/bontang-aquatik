@@ -18,6 +18,17 @@
 
 ---
 
+## Status: SUDAH DIEKSEKUSI ✅
+
+Langkah 1–4 di bawah **sudah saya jalankan langsung** ke akun Supabase Anda (organisasi **AIHO GROUP**) via koneksi Supabase. Project **`bontangaquatik`** sudah live, skema sudah dibuat, dan seluruh data lama sudah diimpor. `config.js` di paket ini **sudah diisi otomatis** dengan URL & anon key project tersebut — Anda tidak perlu mengulang langkah-langkah ini kecuali ingin membuat project baru.
+
+- Project ref: `eenudyixapvgbeosacgt`
+- URL: `https://eenudyixapvgbeosacgt.supabase.co`
+- Region: `ap-southeast-1` (Singapore)
+- Data terimpor: 58 peserta, 494 jadwal, 156 kehadiran, 1 pelatih (selisih dari 508/168 adalah baris berID sama/duplikat di data lama — otomatis dilewati agar tidak ada data ganda)
+
+Langkah di bawah ini murni untuk referensi/rollback atau bila Anda ingin membuat project terpisah (mis. untuk staging):
+
 ## Langkah 1 — Buat Project Supabase
 
 1. Buka [supabase.com](https://supabase.com) → **New Project**.
