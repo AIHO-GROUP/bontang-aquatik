@@ -61,7 +61,7 @@ const PDFRapor = {
     const logoRightX = pageWidth - marginX - logoSize;
 
     let logoKiri = null, logoKanan = null;
-    try { logoKiri = await this.loadImageAsDataURL('assets/images/bontang.png'); } catch (e) { console.warn(e.message); }
+    try { logoKiri = await this.loadImageAsDataURL('assets/images/akuatik.png'); } catch (e) { console.warn(e.message); }
     try { logoKanan = await this.loadImageAsDataURL('assets/images/logo.png'); } catch (e) { console.warn(e.message); }
 
     const drawLogo = (img, x) => {
