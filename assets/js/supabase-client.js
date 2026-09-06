@@ -33,7 +33,7 @@ const SupabaseClient = (() => {
   return window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
     auth: {
       // Aplikasi ini TIDAK memakai Supabase Auth (autentikasi ditangani
-      // sendiri oleh business-logic.js terhadap tabel Peserta/Pelatih,
+      // sendiri oleh domain/people.js terhadap tabel Peserta/Pelatih,
       // persis seperti sebelumnya) — session persistence dimatikan agar
       // tidak ada state auth tersembunyi yang tidak dipakai.
       persistSession: false,

@@ -15,8 +15,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
+  // Semua tautan WhatsApp dibangun lewat modul WA agar formatnya konsisten.
   document.querySelectorAll('[data-wa]').forEach(a => {
-    a.href = Utils.waLink(CONFIG.CONTACT.whatsapp, 'Halo Bontang Akuatik, saya tertarik untuk bergabung kelas pelatihan renang. Mohon informasinya.');
+    a.href = WA.url('calonPeserta');
   });
 });
 

@@ -15,14 +15,20 @@
 
   /* ---------- IKON SVG (reusable; pakai currentColor agar tema-aware) ---------- */
   const ICONS = {
-    eyeOpen: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M2 12C3.8 7.8 7.5 5 12 5C16.5 5 20.2 7.8 22 12C20.2 16.2 16.5 19 12 19C7.5 19 3.8 16.2 2 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="12" cy="12" r="3" fill="currentColor"/></svg>`,
-    eyeClosed: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M3 3L21 21" stroke="var(--color-danger)" stroke-width="2" stroke-linecap="round"/>
-        <path d="M10.6 10.7C10.2 11.1 10 11.5 10 12C10 13.1 10.9 14 12 14C12.5 14 12.9 13.8 13.3 13.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <path d="M9.9 5.1C10.6 5 11.3 5 12 5C16.5 5 20.2 7.8 22 12C21.2 13.8 20 15.3 18.5 16.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M6.2 6.3C4.5 7.5 3.1 9.4 2 12C3.8 16.2 7.5 19 12 19C13.5 19 14.9 18.7 16.2 18.1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    /* Mata terbuka = password masih tersembunyi, ketuk untuk menampilkan.
+       Mata tercoret = password sedang terlihat, ketuk untuk menyembunyikan.
+       Coretan memakai currentColor (bukan merah) karena ini status normal,
+       bukan kesalahan — warna merah membuatnya terbaca seperti peringatan. */
+    eyeOpen: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M2.2 12C4.2 7.6 7.8 5.2 12 5.2s7.8 2.4 9.8 6.8c-2 4.4-5.6 6.8-9.8 6.8S4.2 16.4 2.2 12Z"
+              stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <circle cx="12" cy="12" r="3.2" fill="currentColor"/></svg>`,
+    eyeClosed: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M2.2 12C4.2 7.6 7.8 5.2 12 5.2s7.8 2.4 9.8 6.8c-2 4.4-5.6 6.8-9.8 6.8S4.2 16.4 2.2 12Z"
+              stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" opacity=".55"/>
+        <circle cx="12" cy="12" r="3.2" fill="currentColor" opacity=".55"/>
+        <path d="M4 20 20 4" stroke="var(--color-card)" stroke-width="3.6" stroke-linecap="round"/>
+        <path d="M4 20 20 4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>`,
     success: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="var(--color-success)"/><path d="M7.5 12.5l3 3 6-6.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
     error: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="var(--color-danger)"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>`,
     warning: `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l9.5 16.5h-19L12 3z" fill="var(--color-warning)"/><path d="M12 9v5M12 16.8v.2" stroke="#1a1300" stroke-width="2.1" stroke-linecap="round"/></svg>`,

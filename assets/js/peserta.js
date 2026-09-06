@@ -1,80 +1,383 @@
-// =====================================================================
-// Dashboard Peserta — Gabungan:
-//   • LOGIKA   : kode pertama (rapor tabel 4 gaya × 2 jarak + PDF,
-//                jadwal personal, cache data peserta lengkap)
-//   • TAMPILAN : kode kedua (grid card jadwal + modal absen
-//                lengkap dengan checklist equipment + counter jadwal)
-//
-// Filter & sort lengkap (tidak ada yang dihilangkan):
-//   - Search           : tanggal / pukul / lokasi / kelas
-//   - Filter status    : Aktif / Pending / Cancel        (status jadwal)
-//   - Filter kehadiran : hadir / izin / belum             (status saya)
-//   - Filter tipe      : kelas / personal                 (is_personal)
-//   - Sort tanggal     : newest / oldest / upcoming
-// =====================================================================
+/**
+ * =====================================================================
+ * peserta.js — Dashboard peserta
+ * =====================================================================
+ * Alur utama:
+ *   • Peserta selalu boleh masuk. Bila pembayaran belum dikonfirmasi,
+ *     bagian jadwal digantikan panel terkunci berisi penjelasan dan
+ *     tombol WhatsApp berisi identitas peserta.
+ *   • Status setiap sesi dihitung dari waktu WITA (buka tepat jam mulai,
+ *     tutup 2 jam kemudian) — tidak menunggu admin menekan tombol apa pun.
+ *   • Riwayat periode pelatihan tampil lengkap, beserta tombol
+ *     perpanjangan / bergabung kembali tanpa membuat akun baru.
+ */
 
 let cacheJadwalPeserta = [];
+let lastFilteredJadwal = [];
 let pesertaLengkapCache = null;
 let raporCache = null;
+let jadwalPager = null;
+let tickTimer = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Auth guard — toleran terhadap dua gaya API (Auth.requireRole atau Auth.getSession)
-  if (typeof Auth.requireRole === 'function') {
-    if (!Auth.requireRole('peserta')) return;
-  } else {
-    const session = Auth.getSession();
-    if (!session || session.role !== 'peserta') {
-      window.location.href = 'login.html';
-      return;
-    }
-  }
+  if (!Auth.requireRole(CONFIG.ROLES.PESERTA)) return;
   Utils.mountNavbar('peserta');
 
-  const user = getCurrentUser();
-  document.getElementById('user-nama').textContent = user.nama;
+  const user = Auth.getUser();
+  document.getElementById('user-nama').textContent = user.nama || 'Peserta';
   document.getElementById('user-kelas').textContent = user.kelas || 'Belum ditentukan';
 
   document.getElementById('btn-rapor').addEventListener('click', openRaporModal);
 
-  // Bind semua kontrol toolbar (defensive: tiap elemen dicek dulu agar
-  // tidak error kalau ada satu yang belum ada di HTML).
+  // Aksi yang menulis data disembunyikan saat mode "lihat sebagai" (baca-saja).
+  const btnPerpanjang = document.getElementById('btn-perpanjang');
+  if (Auth.isReadOnlyView()) btnPerpanjang.hidden = true;
+  else btnPerpanjang.addEventListener('click', openPerpanjangModal);
+  document.addEventListener('app:opensettings', () => PesertaSettings.open());
+
   [
-    'search-jadwal-peserta',
-    'filter-jadwal-peserta-status',
-    'filter-jadwal-peserta-kehadiran',
-    'filter-jadwal-peserta-tipe',
-    'sort-jadwal-peserta'
-  ].forEach(id => {
+    'search-jadwal-peserta', 'filter-jadwal-peserta-status',
+    'filter-jadwal-peserta-kehadiran', 'sort-jadwal-peserta'
+  ].forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('input', applyJadwalPesertaFilters);
     el.addEventListener('change', applyJadwalPesertaFilters);
   });
 
-  // Re-render saat mode tampilan jadwal diubah (toggle di section jadwal / Pengaturan)
-  document.addEventListener('jadwalviewchange', () => {
-    if (cacheJadwalPeserta.length || lastFilteredJadwal.length) applyJadwalPesertaFilters();
-  });
-
+  document.addEventListener('jadwalviewchange', () => applyJadwalPesertaFilters());
   setupJadwalViewToggle();
 
-  // Sinkronkan seluruh cache yang dibutuhkan dashboard peserta dalam 1 gelombang,
-  // lalu seluruh render/filter/kalkulasi memakai data lokal (Store) — tanpa
-  // request tambahan ke Apps Script tiap berpindah tab/modal di halaman ini.
-  await Sync.init(['Peserta', 'Jadwal', 'Kehadiran', 'Rapor', 'Berita', 'Pelatih'], () => loadDashboard());
+  jadwalPager = new Paginator({
+    mountId: 'jadwal-pager',
+    storageKey: 'pgsize_jadwal_peserta',
+    label: 'jadwal',
+    onRender: (rows) => renderJadwalView(rows)
+  });
 
-  await loadDashboard();
+  await Sync.init(
+    ['Peserta', 'Jadwal', 'Kehadiran', 'Rapor', 'Berita', 'Pelatih', 'Enrollment'],
+    () => loadDashboard()
+  );
+  loadDashboard();
+
+  Utils.mountChangeNotice();
+  Utils.mountPasswordNag();
+
+  // Status sesi bergantung pada waktu berjalan, jadi tampilan disegarkan
+  // setiap menit agar tombol absen terbuka/tertutup tepat waktu tanpa
+  // pengguna perlu memuat ulang halaman.
+  if (tickTimer) clearInterval(tickTimer);
+  tickTimer = setInterval(() => loadDashboard({ silent: true }), 60000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') loadDashboard({ silent: true });
+  });
 });
 
-/** Button toggle Grid / Kalender pada section-head "Jadwal Pelatihan". */
+/* =====================================================================
+   PEMUATAN DASHBOARD
+   ===================================================================== */
+function loadDashboard() {
+  const user = Auth.getUser();
+  if (!user) return;
+
+  const jadwalRes = BizLogic.getJadwalPeserta({ id_peserta: user.id });
+  const hadirRes = BizLogic.getKehadiranPeserta({ id_peserta: user.id });
+
+  // Sesi bisa berubah (mis. koordinator memperbarui grup); segarkan label.
+  const peserta = Store.findPeserta(user.id);
+  if (peserta) {
+    document.getElementById('user-kelas').textContent = peserta.Kelas || 'Belum ditentukan';
+    Auth.patchUser({ kelas: peserta.Kelas, nomor_peserta: peserta.Nomor_Peserta });
+  }
+
+  renderLockPanel(jadwalRes.akses);
+  renderEnrollments();
+
+  if (hadirRes.success) {
+    const d = hadirRes.data;
+    document.getElementById('stat-total').textContent = d.total_jadwal;
+    document.getElementById('stat-hadir').textContent = d.total_hadir;
+    document.getElementById('stat-hadir-sub').textContent =
+      d.sesi_berlalu > 0 ? 'dari ' + d.sesi_berlalu + ' sesi yang sudah berlalu' : 'Belum ada sesi berlalu';
+    document.getElementById('stat-persen').textContent = d.persentase + '%';
+    document.getElementById('progress-fill').style.width = d.persentase + '%';
+  }
+
+  const locked = !!jadwalRes.locked;
+  document.getElementById('jadwal-section').hidden = locked;
+  document.getElementById('stats-grid').hidden = locked;
+
+  cacheJadwalPeserta = jadwalRes.data || [];
+  applyJadwalPesertaFilters();
+  renderUpcomingReminder();
+  loadBeritaPeserta();
+}
+
+/* =====================================================================
+   PANEL TERKUNCI (payment-gated access)
+   ===================================================================== */
+function renderLockPanel(akses) {
+  const panel = document.getElementById('lock-panel');
+  if (!akses || akses.allowed) {
+    // Periode habis tetap ditampilkan sebagai ajakan, bukan penguncian.
+    if (akses && akses.expired) {
+      renderExpiredPanel(akses);
+      return;
+    }
+    panel.hidden = true;
+    return;
+  }
+
+  const peserta = Store.findPeserta(Auth.getId());
+  panel.hidden = false;
+  panel.classList.remove('is-expired');
+  document.getElementById('lock-title').textContent = 'Jadwal Latihan Masih Terkunci';
+  document.getElementById('lock-message').textContent = akses.message;
+
+  const pending = akses.pendingEnrollment;
+  document.getElementById('lock-meta').innerHTML = pending
+    ? '<div class="lock-meta__row"><span>Grup diajukan</span><strong>' +
+        Utils.escapeHtml(pending.Kelas || '-') + '</strong></div>' +
+      '<div class="lock-meta__row"><span>Periode diajukan</span><strong>' +
+        WITA.formatDate(pending.Tanggal_Mulai) + ' s.d ' + WITA.formatDate(pending.Tanggal_Akhir) + '</strong></div>' +
+      '<div class="lock-meta__row"><span>Nomor peserta</span><strong>' +
+        Utils.escapeHtml((peserta && peserta.Nomor_Peserta) || '-') + '</strong></div>'
+    : '';
+
+  const actions = document.getElementById('lock-actions');
+  actions.innerHTML = '<button type="button" class="btn btn-success btn-lg" id="lock-wa">' +
+    'Konfirmasi Pembayaran via WhatsApp</button>';
+  document.getElementById('lock-wa').addEventListener('click', () => {
+    WA.open(WA.Templates.konfirmasiPembayaran(peserta || Auth.getUser()));
+  });
+}
+
+function renderExpiredPanel(akses) {
+  const panel = document.getElementById('lock-panel');
+  const peserta = Store.findPeserta(Auth.getId());
+  panel.hidden = false;
+  panel.classList.add('is-expired');
+  document.getElementById('lock-title').textContent = 'Periode Pelatihan Anda Telah Berakhir';
+  document.getElementById('lock-message').textContent = akses.message;
+  document.getElementById('lock-meta').innerHTML =
+    '<div class="lock-meta__row"><span>Periode terakhir</span><strong>' +
+      WITA.formatDate(akses.lastEnrollment.Tanggal_Mulai) + ' s.d ' +
+      WITA.formatDate(akses.lastEnrollment.Tanggal_Akhir) + '</strong></div>';
+
+  const actions = document.getElementById('lock-actions');
+  if (Auth.isReadOnlyView()) {
+    // Mode "lihat sebagai" tidak boleh membuat pengajuan atas nama peserta.
+    actions.innerHTML = '<span class="text-muted">Mode lihat sebagai (baca-saja)</span>';
+    return;
+  }
+  actions.innerHTML =
+    '<button type="button" class="btn btn-accent btn-lg" id="lock-extend">Ajukan Perpanjangan</button>';
+  document.getElementById('lock-extend').addEventListener('click', openPerpanjangModal);
+}
+
+/* =====================================================================
+   RIWAYAT PERIODE PELATIHAN
+   ===================================================================== */
+function renderEnrollments() {
+  const list = document.getElementById('enrollment-list');
+  const items = BizLogic.getEnrollments(Auth.getId());
+
+  if (!items.length) {
+    UI.emptyState(list, {
+      icon: '📄',
+      title: 'Belum ada periode pelatihan',
+      message: 'Periode pelatihan akan muncul di sini setelah pendaftaran Anda tercatat.'
+    });
+    return;
+  }
+
+  const today = WITA.todayISO();
+  list.innerHTML = items.slice().reverse().map((e, idx) => {
+    const meta = CONFIG.ENROLLMENT_STATUS[e.Status] || { label: e.Status, tone: 'muted' };
+    const berjalan = e.Status !== 'pending' &&
+      WITA.diffDays(e.Tanggal_Mulai, today) >= 0 && WITA.diffDays(today, e.Tanggal_Akhir) >= 0;
+    const sisaHari = WITA.diffDays(today, e.Tanggal_Akhir);
+
+    return '<article class="enrollment-card' + (berjalan ? ' is-current' : '') + '">' +
+      '<div class="enrollment-card__head">' +
+        '<span class="enrollment-card__seq">Periode ' + (items.length - idx) + '</span>' +
+        '<span class="status-badge ' + meta.tone + '">' + meta.label + '</span>' +
+      '</div>' +
+      '<div class="enrollment-card__range">' +
+        WITA.formatDate(e.Tanggal_Mulai) + ' — ' + WITA.formatDate(e.Tanggal_Akhir) +
+      '</div>' +
+      '<div class="enrollment-card__meta">' +
+        '<span>' + Utils.escapeHtml(e.Kelas || '-') + '</span>' +
+        '<span>' + (e.Durasi_Bulan || 1) + ' bulan</span>' +
+        '<span>' + (BizUtil.isTrue(e.Status_Pembayaran) ? 'Lunas' : 'Belum lunas') + '</span>' +
+      '</div>' +
+      (berjalan && sisaHari >= 0
+        ? '<div class="enrollment-card__note">Tersisa ' + sisaHari + ' hari latihan</div>' : '') +
+      (e.Catatan ? '<div class="enrollment-card__catatan">' + Utils.escapeHtml(e.Catatan) + '</div>' : '') +
+    '</article>';
+  }).join('');
+}
+
+/**
+ * Pengajuan perpanjangan / bergabung kembali.
+ * Tidak pernah membuat akun baru — hanya menambah periode pada akun yang sama.
+ */
+function openPerpanjangModal() {
+  const id = Auth.getId();
+  const peserta = Store.findPeserta(id);
+  const current = BizLogic.currentEnrollment(id);
+  const mulaiDefault = current ? WITA.addDays(current.Tanggal_Akhir, 1) : WITA.todayISO();
+  const isRejoin = !current;
+
+  const kelasOpts = CONFIG.KELAS_OPTIONS.map((k) =>
+    '<option value="' + k + '"' + (k === (peserta && peserta.Kelas) ? ' selected' : '') + '>' + k + '</option>'
+  ).join('');
+  const durasiOpts = CONFIG.DURASI_OPTIONS.map((n) =>
+    '<option value="' + n + '">' + n + ' bulan</option>').join('');
+
+  const body =
+    '<p class="form-helper">' +
+      (isRejoin
+        ? 'Anda akan <strong>bergabung kembali</strong> memakai akun yang sama. Seluruh riwayat latihan dan rapor Anda tetap tersimpan.'
+        : 'Periode baru akan <strong>menyambung</strong> setelah periode berjalan berakhir. Riwayat lama tidak terhapus.') +
+    '</p>' +
+    '<div class="form-group"><label for="ext-kelas">Grup Latihan</label>' +
+      '<select id="ext-kelas" class="form-control">' + kelasOpts + '</select></div>' +
+    '<div class="form-grid-2">' +
+      '<div class="form-group"><label for="ext-durasi">Durasi</label>' +
+        '<select id="ext-durasi" class="form-control">' + durasiOpts + '</select></div>' +
+      '<div class="form-group"><label for="ext-mulai">Mulai</label>' +
+        '<input type="date" id="ext-mulai" class="form-control" value="' + mulaiDefault + '"' +
+        (isRejoin ? '' : ' readonly') + '></div>' +
+    '</div>' +
+    '<div class="form-group"><label>Perkiraan Berakhir</label>' +
+      '<input type="text" id="ext-akhir" class="form-control" readonly></div>';
+
+  const m = UI.modal({
+    title: isRejoin ? 'Bergabung Kembali' : 'Perpanjang Pelatihan',
+    size: 'sm',
+    body,
+    actions: [{ label: 'Batal', variant: 'secondary' }]
+  });
+
+  const kelasEl = m.el.querySelector('#ext-kelas');
+  const durasiEl = m.el.querySelector('#ext-durasi');
+  const mulaiEl = m.el.querySelector('#ext-mulai');
+  const akhirEl = m.el.querySelector('#ext-akhir');
+
+  const recalc = () => {
+    const iso = WITA.addMonths(mulaiEl.value, parseInt(durasiEl.value, 10) || 1);
+    akhirEl.value = WITA.formatDateLong(iso);
+    akhirEl.dataset.iso = iso;
+  };
+  durasiEl.addEventListener('change', recalc);
+  mulaiEl.addEventListener('change', recalc);
+  recalc();
+
+  const submit = document.createElement('button');
+  submit.type = 'button';
+  submit.className = 'btn btn-accent btn-block';
+  submit.style.marginTop = '12px';
+  submit.textContent = 'Ajukan & Hubungi Admin';
+  submit.addEventListener('click', async () => {
+    submit.disabled = true;
+    Utils.showLoader(true);
+    const res = await BizLogic.requestExtension({
+      id_peserta: id,
+      kelas: kelasEl.value,
+      durasi: parseInt(durasiEl.value, 10),
+      mulai: mulaiEl.value
+    });
+    Utils.showLoader(false);
+    submit.disabled = false;
+
+    if (!res.success) {
+      UI.toast(res.message, res.code === 'PENDING_EXISTS' ? 'warning' : 'error', { duration: 6000 });
+      if (res.code === 'PENDING_EXISTS') {
+        WA.open(WA.Templates.perpanjangan(peserta, {
+          kelas: res.data.Kelas, durasi: res.data.Durasi_Bulan, mulai: res.data.Tanggal_Mulai
+        }));
+        m.close();
+      }
+      return;
+    }
+
+    m.close();
+    UI.toast(res.message, 'success', { duration: 5000 });
+    WA.open(WA.Templates.perpanjangan(peserta, {
+      kelas: kelasEl.value, durasi: parseInt(durasiEl.value, 10), mulai: mulaiEl.value
+    }));
+    loadDashboard();
+  });
+  m.el.querySelector('.modal-body').appendChild(submit);
+}
+
+/* =====================================================================
+   FILTER, SORT & PAGINATION JADWAL
+   ===================================================================== */
+function applyJadwalPesertaFilters() {
+  const q = (document.getElementById('search-jadwal-peserta')?.value || '').toLowerCase();
+  const statusF = document.getElementById('filter-jadwal-peserta-status')?.value || '';
+  const kehadiranF = document.getElementById('filter-jadwal-peserta-kehadiran')?.value || '';
+  const sort = document.getElementById('sort-jadwal-peserta')?.value || 'upcoming';
+
+  let list = cacheJadwalPeserta.filter((j) => {
+    if (q) {
+      const haystack = [
+        WITA.formatDate(j.Tanggal), j.Tanggal, j.jam_label, j.Lokasi, j.Kelas
+      ].join(' ').toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    if (statusF && j.Status !== statusF) return false;
+
+    const myStatus = j.sudah_absen ? j.status_kehadiran : 'belum';
+    if (kehadiranF && myStatus !== kehadiranF) return false;
+    return true;
+  });
+
+  const today = WITA.todayISO();
+  list.sort((a, b) => {
+    const da = a.Tanggal, db = b.Tanggal;
+    if (sort === 'tanggal-asc') return da.localeCompare(db);
+    if (sort === 'upcoming') {
+      const aFuture = WITA.diffDays(today, da) >= 0;
+      const bFuture = WITA.diffDays(today, db) >= 0;
+      if (aFuture !== bFuture) return aFuture ? -1 : 1;
+      return aFuture ? da.localeCompare(db) : db.localeCompare(da);
+    }
+    return db.localeCompare(da);
+  });
+
+  const counter = document.getElementById('jadwal-count');
+  if (counter) {
+    const total = cacheJadwalPeserta.length;
+    counter.textContent = list.length === total
+      ? total + ' jadwal'
+      : list.length + ' dari ' + total + ' jadwal';
+  }
+
+  lastFilteredJadwal = list;
+  const mode = viewMode();
+  // Kalender selalu menampilkan seluruh bulan, jadi pagination hanya
+  // relevan untuk tampilan grid.
+  document.getElementById('jadwal-pager').hidden = (mode === 'calendar');
+  if (mode === 'calendar') renderJadwalCalendar(list);
+  else jadwalPager.setData(list);
+}
+
+function viewMode() {
+  return (window.PesertaSettings && PesertaSettings.getViewMode()) || 'grid';
+}
+
 function setupJadwalViewToggle() {
   const group = document.getElementById('jadwal-view-toggle');
   if (!group) return;
   const buttons = group.querySelectorAll('button[data-val]');
 
-  const syncActiveState = () => {
-    const mode = (window.PesertaSettings && PesertaSettings.getViewMode()) ? PesertaSettings.getViewMode() : 'grid';
-    buttons.forEach(b => {
+  const sync = () => {
+    const mode = viewMode();
+    buttons.forEach((b) => {
       const active = b.dataset.val === mode;
       b.classList.toggle('active', active);
       b.setAttribute('aria-pressed', active ? 'true' : 'false');
@@ -84,322 +387,351 @@ function setupJadwalViewToggle() {
   group.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-val]');
     if (!btn || btn.classList.contains('active')) return;
-    if (window.PesertaSettings && typeof PesertaSettings.setViewMode === 'function') {
-      PesertaSettings.setViewMode(btn.dataset.val);
-    } else {
-      // Fallback bila PesertaSettings tidak tersedia
-      syncActiveState();
-      renderJadwalView(lastFilteredJadwal.length ? lastFilteredJadwal : cacheJadwalPeserta);
-    }
+    PesertaSettings.setViewMode(btn.dataset.val);
   });
 
-  document.addEventListener('jadwalviewchange', syncActiveState);
-  syncActiveState();
+  document.addEventListener('jadwalviewchange', sync);
+  sync();
 }
 
-/** Ambil user dari salah satu API yang tersedia (Auth.getUser / Auth.getSession). */
-function getCurrentUser() {
-  if (typeof Auth.getUser === 'function') return Auth.getUser();
-  const session = Auth.getSession();
-  return session ? session.data : {};
-}
-
-function loadDashboard() {
-  const user = getCurrentUser();
-  const jadwalRes = BizLogic.getJadwalPeserta({ id_peserta: user.id });
-  const hadirRes = BizLogic.getKehadiranPeserta({ id_peserta: user.id });
-
-  if (hadirRes.success) {
-    const d = hadirRes.data;
-    document.getElementById('stat-total').textContent = d.total_jadwal;
-    document.getElementById('stat-hadir').textContent = d.total_hadir;
-    document.getElementById('stat-persen').textContent = d.persentase + '%';
-    document.getElementById('progress-fill').style.width = d.persentase + '%';
-  }
-
-  if (jadwalRes.success) {
-    cacheJadwalPeserta = jadwalRes.data || [];
-    applyJadwalPesertaFilters();
-    renderUpcomingReminder();
-  } else {
-    document.getElementById('jadwal-list').innerHTML =
-      `<div class="empty-state"><div class="icon">⚠️</div><p>${Utils.escapeHtml(jadwalRes.message || 'Gagal memuat jadwal')}</p></div>`;
-    Utils.notify(jadwalRes.message || 'Gagal memuat jadwal', 'error');
-  }
-
-  loadBeritaPeserta();
+function renderJadwalView(rows) {
+  if (viewMode() === 'calendar') renderJadwalCalendar(lastFilteredJadwal);
+  else renderJadwalGrid(rows);
 }
 
 /* =====================================================================
-   FILTER & SORT JADWAL
+   TAMPILAN GRID
    ===================================================================== */
-function applyJadwalPesertaFilters() {
-  const q          = (document.getElementById('search-jadwal-peserta')?.value || '').toLowerCase();
-  const statusF    = document.getElementById('filter-jadwal-peserta-status')?.value || '';
-  const kehadiranF = document.getElementById('filter-jadwal-peserta-kehadiran')?.value || '';
-  const tipeF      = document.getElementById('filter-jadwal-peserta-tipe')?.value || '';
-  const sort       = document.getElementById('sort-jadwal-peserta')?.value || 'newest';
+function statusTone(status) {
+  if (status === 'Aktif') return 'badge-success';
+  if (status === 'Pending') return 'badge-warning';
+  if (status === 'Selesai') return 'badge-muted';
+  return 'badge-danger';
+}
 
-  let list = cacheJadwalPeserta.filter(j => {
-    // ---- Search ----
-    const haystack = [
-      Utils.formatDate(j.Tanggal).toLowerCase(),
-      String(j.Tanggal || '').toLowerCase(),
-      (j.Pukul  || '').toLowerCase(),
-      (j.Lokasi || '').toLowerCase(),
-      (j.Kelas  || '').toLowerCase()
-    ].join(' ');
-    if (q && !haystack.includes(q)) return false;
-
-    // ---- Status jadwal (Aktif/Pending/Cancel) ----
-    // Toleran terhadap value "all" maupun "" (keduanya = tidak memfilter).
-    if (statusF && statusF !== 'all' && j.Status !== statusF) return false;
-
-    // ---- Status kehadiran saya (hadir/izin/belum) ----
-    let myStatus = 'belum';
-    if (j.sudah_absen) myStatus = j.status_kehadiran; // 'hadir' atau 'izin'
-    if (kehadiranF && kehadiranF !== 'all' && myStatus !== kehadiranF) return false;
-
-    // ---- Tipe (kelas/personal) ----
-    if (tipeF === 'kelas'    && j.is_personal) return false;
-    if (tipeF === 'personal' && !j.is_personal) return false;
-
-    return true;
-  });
-
-  // ---- Sort ----
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-
-  list.sort((a, b) => {
-    const da = new Date(a.Tanggal);
-    const db = new Date(b.Tanggal);
-
-    // Dukung dua skema penamaan agar kompatibel dengan kode lama:
-    //   newest    ≡ tanggal-desc
-    //   oldest    ≡ tanggal-asc
-    //   upcoming  : jadwal ≥ hari ini di atas (asc), lalu yang lewat (desc)
-    if (sort === 'oldest' || sort === 'tanggal-asc') return da - db;
-    if (sort === 'upcoming') {
-      const aFuture = da >= now;
-      const bFuture = db >= now;
-      if (aFuture && !bFuture) return -1;
-      if (!aFuture && bFuture) return 1;
-      return aFuture ? (da - db) : (db - da);
-    }
-    return db - da; // default: newest / tanggal-desc
-  });
-
-  // Counter
-  const counter = document.getElementById('jadwal-count');
-  if (counter) {
-    const total = cacheJadwalPeserta.length;
-    counter.textContent = list.length === total
-      ? `${total} jadwal`
-      : `${list.length} dari ${total} jadwal`;
+function actionButtonFor(j) {
+  if (j.sudah_absen) {
+    return j.status_kehadiran === 'hadir'
+      ? '<button class="btn btn-sm btn-success" disabled>✓ Sudah Absen</button>'
+      : '<button class="btn btn-sm btn-secondary" disabled>📝 Sudah Izin</button>';
   }
-
-  renderJadwalView(list);
+  if (j.can_attend) {
+    return '<button class="btn btn-sm btn-accent" data-absen="' + j.Id_Jadwal + '">Absen / Izin</button>';
+  }
+  if (j.Status === 'Pending') {
+    return '<button class="btn btn-sm btn-secondary" data-izin="' + j.Id_Jadwal + '">Ajukan Izin</button>';
+  }
+  if (j.Status === 'Cancel') return '<button class="btn btn-sm btn-secondary" disabled>Dibatalkan</button>';
+  return '<button class="btn btn-sm btn-secondary" disabled>Absensi Ditutup</button>';
 }
 
-let lastFilteredJadwal = [];
-
-/** Pilih renderer sesuai mode tampilan (grid / kalender) dari PesertaSettings. */
-function renderJadwalView(list) {
-  lastFilteredJadwal = list;
-  const mode = (window.PesertaSettings && PesertaSettings.getViewMode()) ? PesertaSettings.getViewMode() : 'grid';
-  if (mode === 'calendar') renderJadwalCalendar(list);
-  else renderJadwalGrid(list);
-}
-
-/* =====================================================================
-   RENDER GRID CARD (gaya kode kedua + badge PERSONAL dari kode pertama)
-   ===================================================================== */
 function renderJadwalGrid(jadwals) {
   const container = document.getElementById('jadwal-list');
 
   if (!jadwals || jadwals.length === 0) {
     const isFiltered = cacheJadwalPeserta.length > 0;
     container.innerHTML = isFiltered
-      ? `<div class="empty-state">
-          <div class="icon">🔍</div>
-          <p>Tidak ada jadwal yang cocok dengan filter Anda.</p>
-          <p class="text-muted" style="font-size:13px;margin-top:6px;">Coba ubah kata kunci atau reset filter.</p>
-        </div>`
-      : `<div class="empty-state">
-          <div class="icon">📅</div>
-          <p>Belum ada jadwal pelatihan untuk kelas Anda.</p>
-          <p class="text-muted" style="font-size:13px;margin-top:6px;">Jadwal akan otomatis terbuat setelah admin mengkonfirmasi pembayaran.</p>
-        </div>`;
+      ? '<div class="empty-state"><div class="icon">🔍</div>' +
+        '<p>Tidak ada jadwal yang cocok dengan filter Anda.</p>' +
+        '<p class="text-muted" style="font-size:13px;margin-top:6px;">Coba ubah kata kunci atau atur ulang filter.</p></div>'
+      : '<div class="empty-state"><div class="icon">📅</div>' +
+        '<p>Belum ada jadwal pelatihan untuk grup Anda.</p>' +
+        '<p class="text-muted" style="font-size:13px;margin-top:6px;">Jadwal terbuat otomatis setelah pembayaran dikonfirmasi.</p></div>';
     return;
   }
 
-  container.innerHTML = `
-    <div class="jadwal-grid">
-      ${jadwals.map(j => {
-        const status = String(j.Status).toLowerCase();
-        const badgeClass = status === 'aktif' ? 'badge-success'
-                         : status === 'pending' ? 'badge-warning'
-                         : 'badge-danger';
+  container.innerHTML = '<div class="jadwal-grid">' + jadwals.map((j) =>
+    '<div class="jadwal-card' + (j.is_personal ? ' is-personal' : '') +
+        (j.Status === 'Aktif' ? ' is-live' : '') + '">' +
+      '<div class="jadwal-date">' + Utils.escapeHtml(WITA.formatDate(j.Tanggal)) +
+        (j.is_personal ? '<span class="badge badge-personal" title="Jadwal personal">⭐ PERSONAL</span>' : '') +
+      '</div>' +
+      '<h4>' + Utils.escapeHtml(j.Kelas) + '</h4>' +
+      '<div class="jadwal-info">' +
+        '<span>🕐 ' + Utils.escapeHtml(j.jam_label) + '</span>' +
+        '<span>📍 ' + Utils.escapeHtml(j.Lokasi) + '</span>' +
+      '</div>' +
+      '<div class="jadwal-countdown">' + Utils.escapeHtml(j.countdown) + '</div>' +
+      '<div class="jadwal-actions">' +
+        '<span class="badge ' + statusTone(j.Status) + '">' + Utils.escapeHtml(j.Status) + '</span>' +
+        actionButtonFor(j) +
+      '</div>' +
+    '</div>').join('') + '</div>';
 
-        const sudahRespond     = j.sudah_absen;
-        const kehadiranStatus  = j.status_kehadiran;
+  bindJadwalActions(container);
+}
 
-        // Action button — sama persis dengan kode kedua
-        let actionHtml;
-        if (sudahRespond) {
-          actionHtml = (kehadiranStatus === 'hadir')
-            ? `<button class="btn btn-sm btn-success" disabled>✓ Sudah Absen</button>`
-            : `<button class="btn btn-sm btn-secondary" disabled>📝 Sudah Izin</button>`;
-        } else if (status === 'aktif') {
-          actionHtml = `<button class="btn btn-sm btn-accent" onclick="openAbsenModal('${j.Id_Jadwal}')">Absen / Izin</button>`;
-        } else {
-          actionHtml = `<button class="btn btn-sm btn-secondary" disabled>Belum Dibuka</button>`;
-        }
-
-        // Badge personal — dipertahankan dari kode pertama agar logika
-        // personal tetap terlihat oleh user, tanpa mengubah layout card.
-        const personalBadge = j.is_personal
-          ? `<span class="badge badge-personal" title="Jadwal personal">⭐ PERSONAL</span>`
-          : '';
-
-        return `
-          <div class="jadwal-card${j.is_personal ? ' is-personal' : ''}">
-            <div class="jadwal-date">
-              ${Utils.escapeHtml(Utils.formatDate(j.Tanggal))}
-              ${personalBadge}
-            </div>
-            <h4>${Utils.escapeHtml(j.Kelas)}</h4>
-            <div class="jadwal-info">
-              <span>🕐 ${Utils.escapeHtml(j.Pukul)}</span>
-              <span>📍 ${Utils.escapeHtml(j.Lokasi)}</span>
-            </div>
-            <div class="jadwal-actions">
-              <span class="badge ${badgeClass}">${Utils.escapeHtml(j.Status)}</span>
-              ${actionHtml}
-            </div>
-          </div>`;
-      }).join('')}
-    </div>`;
+function bindJadwalActions(root) {
+  root.querySelectorAll('[data-absen]').forEach((b) =>
+    b.addEventListener('click', () => openAbsenModal(b.dataset.absen, 'hadir')));
+  root.querySelectorAll('[data-izin]').forEach((b) =>
+    b.addEventListener('click', () => openAbsenModal(b.dataset.izin, 'izin')));
 }
 
 /* =====================================================================
-   RENDER KALENDER (req #9) — tampilan bulanan jadwal peserta
+   TAMPILAN KALENDER
    ===================================================================== */
-let calMonth = null; // Date (tanggal 1 bulan yang ditampilkan)
-
-function jadwalDateISO(j) { return Utils.formatDateInput(j.Tanggal); }
+let calMonth = null;
 
 function renderJadwalCalendar(list) {
   const container = document.getElementById('jadwal-list');
   if (!calMonth) {
-    // Default: bulan dari jadwal terdekat yang akan datang, fallback bulan ini.
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const upcoming = [...list].filter(j => new Date(j.Tanggal) >= today)
-      .sort((a, b) => new Date(a.Tanggal) - new Date(b.Tanggal))[0];
-    const base = upcoming ? new Date(upcoming.Tanggal) : new Date();
-    calMonth = new Date(base.getFullYear(), base.getMonth(), 1);
+    const today = WITA.todayISO();
+    const upcoming = list.filter((j) => WITA.diffDays(today, j.Tanggal) >= 0)
+      .sort((a, b) => a.Tanggal.localeCompare(b.Tanggal))[0];
+    const base = upcoming ? upcoming.Tanggal : today;
+    calMonth = base.slice(0, 7);
   }
 
   const byDate = {};
-  list.forEach(j => { const k = jadwalDateISO(j); (byDate[k] = byDate[k] || []).push(j); });
+  list.forEach((j) => { (byDate[j.Tanggal] = byDate[j.Tanggal] || []).push(j); });
 
-  const year = calMonth.getFullYear(), month = calMonth.getMonth();
-  const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-  const firstDow = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const todayISO = Utils.formatDateInput(new Date());
+  const [year, month] = calMonth.split('-').map(Number);
+  const firstDow = WITA.dayOfWeek(calMonth + '-01');
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const todayISO = WITA.todayISO();
 
-  const dotClass = (s) => { s = String(s).toLowerCase(); return s === 'aktif' ? 'aktif' : s === 'pending' ? 'pending' : 'cancel'; };
+  const dotClass = (s) =>
+    s === 'Aktif' ? 'aktif' : s === 'Pending' ? 'pending' : s === 'Selesai' ? 'selesai' : 'cancel';
 
   let cells = '';
-  for (let i = 0; i < firstDow; i++) cells += `<div class="cal-cell cal-cell--empty"></div>`;
+  for (let i = 0; i < firstDow; i++) cells += '<div class="cal-cell cal-cell--empty"></div>';
   for (let d = 1; d <= daysInMonth; d++) {
-    const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const iso = calMonth + '-' + String(d).padStart(2, '0');
     const items = byDate[iso] || [];
-    const isToday = iso === todayISO;
-    const dots = items.slice(0, 3).map(j => `<span class="cal-dot ${dotClass(j.Status)}"></span>`).join('');
-    const more = items.length > 3 ? `<span class="cal-more">+${items.length - 3}</span>` : '';
-    cells += `
-      <div class="cal-cell ${items.length ? 'has-events' : ''} ${isToday ? 'is-today' : ''}"
-           ${items.length ? `role="button" tabindex="0" onclick="openCalendarDay('${iso}')" onkeydown="if(event.key==='Enter'){openCalendarDay('${iso}')}"` : ''}>
-        <span class="cal-daynum">${d}</span>
-        ${items.length ? `<span class="cal-dots">${dots}${more}</span>` : ''}
-      </div>`;
+    const dots = items.slice(0, 3).map((j) => '<span class="cal-dot ' + dotClass(j.Status) + '"></span>').join('');
+    const more = items.length > 3 ? '<span class="cal-more">+' + (items.length - 3) + '</span>' : '';
+    cells +=
+      '<div class="cal-cell ' + (items.length ? 'has-events' : '') + ' ' + (iso === todayISO ? 'is-today' : '') + '"' +
+        (items.length ? ' role="button" tabindex="0" data-day="' + iso + '"' : '') + '>' +
+        '<span class="cal-daynum">' + d + '</span>' +
+        (items.length ? '<span class="cal-dots">' + dots + more + '</span>' : '') +
+      '</div>';
   }
 
-  container.innerHTML = `
-    <div class="cal-wrap">
-      <div class="cal-head">
-        <button class="cal-nav" aria-label="Bulan sebelumnya" onclick="shiftCalendar(-1)">‹</button>
-        <div class="cal-title">${monthNames[month]} ${year}</div>
-        <button class="cal-nav" aria-label="Bulan berikutnya" onclick="shiftCalendar(1)">›</button>
-      </div>
-      <div class="cal-today-row"><button class="btn btn-sm btn-secondary" onclick="calendarToday()">Hari ini</button></div>
-      <div class="cal-grid cal-weekdays">
-        ${['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map(w => `<div class="cal-weekday">${w}</div>`).join('')}
-      </div>
-      <div class="cal-grid">${cells}</div>
-      <div class="cal-legend">
-        <span><span class="cal-dot aktif"></span> Aktif</span>
-        <span><span class="cal-dot pending"></span> Pending</span>
-        <span><span class="cal-dot cancel"></span> Cancel</span>
-      </div>
-    </div>`;
+  container.innerHTML =
+    '<div class="cal-wrap">' +
+      '<div class="cal-head">' +
+        '<button class="cal-nav" data-cal="-1" aria-label="Bulan sebelumnya">‹</button>' +
+        '<div class="cal-title">' + WITA.MONTH_LONG[month - 1] + ' ' + year + '</div>' +
+        '<button class="cal-nav" data-cal="1" aria-label="Bulan berikutnya">›</button>' +
+      '</div>' +
+      '<div class="cal-today-row"><button class="btn btn-sm btn-secondary" data-cal="today">Hari ini</button></div>' +
+      '<div class="cal-grid cal-weekdays">' +
+        WITA.DAY_SHORT.map((w) => '<div class="cal-weekday">' + w + '</div>').join('') +
+      '</div>' +
+      '<div class="cal-grid">' + cells + '</div>' +
+      '<div class="cal-legend">' +
+        '<span><span class="cal-dot aktif"></span> Berlangsung</span>' +
+        '<span><span class="cal-dot pending"></span> Belum dibuka</span>' +
+        '<span><span class="cal-dot selesai"></span> Selesai</span>' +
+        '<span><span class="cal-dot cancel"></span> Dibatalkan</span>' +
+      '</div>' +
+    '</div>';
+
+  container.querySelectorAll('[data-cal]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.cal === 'today') calMonth = WITA.todayISO().slice(0, 7);
+      else {
+        const delta = Number(btn.dataset.cal);
+        const d = new Date(Date.UTC(year, month - 1 + delta, 1));
+        calMonth = d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+      }
+      renderJadwalCalendar(lastFilteredJadwal);
+    });
+  });
+
+  container.querySelectorAll('[data-day]').forEach((cell) => {
+    const open = () => openCalendarDay(cell.dataset.day);
+    cell.addEventListener('click', open);
+    cell.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+  });
 }
 
-function shiftCalendar(delta) {
-  if (!calMonth) calMonth = new Date();
-  calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + delta, 1);
-  renderJadwalCalendar(lastFilteredJadwal);
-}
-function calendarToday() {
-  const n = new Date(); calMonth = new Date(n.getFullYear(), n.getMonth(), 1);
-  renderJadwalCalendar(lastFilteredJadwal);
-}
-
-/** Modal daftar sesi pada satu tanggal (dari kalender). */
 function openCalendarDay(iso) {
-  const items = lastFilteredJadwal.filter(j => jadwalDateISO(j) === iso);
+  const items = lastFilteredJadwal.filter((j) => j.Tanggal === iso);
   if (!items.length) return;
-  const rows = items.map(j => {
-    const status = String(j.Status).toLowerCase();
-    const badgeClass = status === 'aktif' ? 'badge-success' : status === 'pending' ? 'badge-warning' : 'badge-danger';
-    let action = '';
-    if (j.sudah_absen) {
-      action = j.status_kehadiran === 'hadir'
-        ? `<button class="btn btn-sm btn-success" disabled>✓ Sudah Absen</button>`
-        : `<button class="btn btn-sm btn-secondary" disabled>📝 Sudah Izin</button>`;
-    } else if (status === 'aktif') {
-      action = `<button class="btn btn-sm btn-accent" data-absen="${j.Id_Jadwal}">Absen / Izin</button>`;
-    } else {
-      action = `<button class="btn btn-sm btn-secondary" disabled>Belum Dibuka</button>`;
-    }
-    return `<li class="cal-day-item ${j.is_personal ? 'is-personal' : ''}">
-        <div><strong>${Utils.escapeHtml(j.Kelas)}</strong>${j.is_personal ? ' <span class="badge badge-personal">⭐ Personal</span>' : ''}
-          <div class="cal-day-meta">🕐 ${Utils.escapeHtml(j.Pukul)} • 📍 ${Utils.escapeHtml(j.Lokasi)}</div></div>
-        <div class="cal-day-action"><span class="badge ${badgeClass}">${Utils.escapeHtml(j.Status)}</span>${action}</div>
-      </li>`;
-  }).join('');
+
+  const rows = items.map((j) =>
+    '<li class="cal-day-item ' + (j.is_personal ? 'is-personal' : '') + '">' +
+      '<div><strong>' + Utils.escapeHtml(j.Kelas) + '</strong>' +
+        (j.is_personal ? ' <span class="badge badge-personal">⭐ Personal</span>' : '') +
+        '<div class="cal-day-meta">🕐 ' + Utils.escapeHtml(j.jam_label) +
+        ' • 📍 ' + Utils.escapeHtml(j.Lokasi) + '</div>' +
+        '<div class="cal-day-meta">' + Utils.escapeHtml(j.countdown) + '</div>' +
+      '</div>' +
+      '<div class="cal-day-action">' +
+        '<span class="badge ' + statusTone(j.Status) + '">' + Utils.escapeHtml(j.Status) + '</span>' +
+        actionButtonFor(j) +
+      '</div>' +
+    '</li>').join('');
 
   const m = UI.modal({
-    title: '📅 ' + Utils.formatDateLong(iso),
+    title: WITA.formatDateFull(iso),
     size: 'sm',
-    body: `<ul class="cal-day-list">${rows}</ul>`
+    body: '<ul class="cal-day-list">' + rows + '</ul>'
   });
-  m.el.querySelectorAll('[data-absen]').forEach(b =>
-    b.addEventListener('click', () => { m.close(); openAbsenModal(b.dataset.absen); }));
+  m.el.querySelectorAll('[data-absen]').forEach((b) =>
+    b.addEventListener('click', () => { m.close(); openAbsenModal(b.dataset.absen, 'hadir'); }));
+  m.el.querySelectorAll('[data-izin]').forEach((b) =>
+    b.addEventListener('click', () => { m.close(); openAbsenModal(b.dataset.izin, 'izin'); }));
 }
 
 /* =====================================================================
-   BERITA & PENGINGAT JADWAL (req #6)
+   PENGINGAT ABSENSI
+   ===================================================================== */
+function renderUpcomingReminder() {
+  const section = document.getElementById('upcoming-reminder-section');
+  const scroller = document.getElementById('reminder-scroller');
+  const badge = document.getElementById('reminder-count');
+  if (!section || !scroller) return;
+
+  const today = WITA.todayISO();
+  const items = cacheJadwalPeserta
+    .filter((j) => !j.sudah_absen &&
+                   WITA.diffDays(today, j.Tanggal) >= 0 &&
+                   ['Aktif', 'Pending'].includes(j.Status))
+    .sort((a, b) => a.Tanggal.localeCompare(b.Tanggal))
+    .slice(0, 6);
+
+  if (!items.length) { section.hidden = true; scroller.innerHTML = ''; return; }
+  section.hidden = false;
+  badge.textContent = items.length;
+
+  scroller.innerHTML = items.map((j) => {
+    const live = j.Status === 'Aktif';
+    return '<div class="reminder-card' + (live ? ' is-today' : '') + '" role="button" tabindex="0" ' +
+        'data-absen="' + j.Id_Jadwal + '">' +
+      '<span class="reminder-card__tag">' + (live ? '🟢 Absensi Dibuka' : '📅 ' + WITA.relativeLabel(j.Tanggal)) + '</span>' +
+      '<div class="reminder-card__title">' + Utils.escapeHtml(j.Kelas) +
+        (j.is_personal ? ' <span class="badge badge-personal">⭐</span>' : '') + '</div>' +
+      '<div class="reminder-card__meta">' +
+        '<span>📅 ' + Utils.escapeHtml(WITA.formatDateLong(j.Tanggal)) + '</span>' +
+        '<span>🕐 ' + Utils.escapeHtml(j.jam_label) + '</span>' +
+        '<span>📍 ' + Utils.escapeHtml(j.Lokasi) + '</span>' +
+      '</div>' +
+      '<div class="reminder-card__cta">' + Utils.escapeHtml(j.countdown) + ' ›</div>' +
+    '</div>';
+  }).join('');
+
+  scroller.querySelectorAll('[data-absen]').forEach((card) => {
+    const open = () => openAbsenModal(card.dataset.absen);
+    card.addEventListener('click', open);
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+  });
+}
+
+/* =====================================================================
+   MODAL ABSENSI
+   ===================================================================== */
+function openAbsenModal(idJadwal, mode) {
+  const j = cacheJadwalPeserta.find((x) => x.Id_Jadwal === idJadwal);
+  if (!j) return;
+  const eq = CONFIG.EQUIPMENT_INFO;
+
+  const body =
+    '<div class="absen-summary">' +
+      '<strong>' + Utils.escapeHtml(j.Kelas) + '</strong>' +
+      '<span>' + Utils.escapeHtml(WITA.formatDateFull(j.Tanggal)) + '</span>' +
+      '<span>🕐 ' + Utils.escapeHtml(j.jam_label) + ' • 📍 ' + Utils.escapeHtml(j.Lokasi) + '</span>' +
+      '<span class="absen-summary__status">' + Utils.escapeHtml(j.countdown) + '</span>' +
+    '</div>' +
+    '<div class="equipment-section">' +
+      '<h4>🏊 Persiapan Latihan</h4>' +
+      '<details class="equipment-detail" open><summary><strong>A. Pemula</strong></summary>' +
+        '<ul>' + eq.pemula.map((i) => '<li>' + Utils.escapeHtml(i) + '</li>').join('') + '</ul></details>' +
+      '<details class="equipment-detail"><summary><strong>B. Tingkat Lanjut</strong> ' +
+        '<small>(menguasai minimal 2 gaya, 25 m)</small></summary>' +
+        '<ul>' + eq.lanjut.map((i) => '<li>' + Utils.escapeHtml(i) + '</li>').join('') + '</ul></details>' +
+      '<details class="equipment-detail"><summary><strong>C. Perlengkapan Lain</strong></summary>' +
+        '<ul>' + eq.lain.map((i) => '<li>' + Utils.escapeHtml(i) + '</li>').join('') + '</ul></details>' +
+      '<details class="equipment-detail"><summary><strong>D. Informasi Tambahan</strong></summary>' +
+        '<ul>' + eq.tambahan.map((i) => '<li>' + Utils.escapeHtml(i) + '</li>').join('') + '</ul></details>' +
+    '</div>' +
+    (j.can_attend
+      ? '<label class="checkbox-row"><input type="checkbox" id="agree-checkbox">' +
+        '<span>Saya telah memahami dan akan mempersiapkan peralatan yang diperlukan.</span></label>'
+      : '<div class="info-banner info-banner--soft"><div aria-hidden="true">ℹ️</div>' +
+        '<p>Absensi kehadiran belum dibuka. Anda tetap dapat mengajukan <strong>izin</strong> lebih awal.</p></div>') +
+    '<div id="izin-section" class="' + (mode === 'izin' || !j.can_attend ? '' : 'hidden') + '">' +
+      '<hr class="divider">' +
+      '<label for="catatan-izin">Alasan tidak hadir <span class="text-muted">(wajib diisi)</span></label>' +
+      '<textarea id="catatan-izin" class="form-control" rows="3" ' +
+        'placeholder="Contoh: sakit, ada acara keluarga, ..."></textarea>' +
+    '</div>';
+
+  const m = UI.modal({ title: '📋 Konfirmasi Absensi', size: 'sm', body });
+  const footer = document.createElement('div');
+  footer.className = 'modal-footer';
+
+  const izinBtn = document.createElement('button');
+  izinBtn.className = 'btn btn-warning';
+  izinBtn.textContent = (mode === 'izin' || !j.can_attend) ? '📤 Kirim Izin' : '📝 Izin';
+
+  const hadirBtn = document.createElement('button');
+  hadirBtn.className = 'btn btn-primary';
+  hadirBtn.textContent = '✓ Ya, Saya Hadir';
+  hadirBtn.disabled = true;
+  hadirBtn.hidden = !j.can_attend;
+
+  const agree = m.el.querySelector('#agree-checkbox');
+  if (agree) agree.addEventListener('change', () => { hadirBtn.disabled = !agree.checked; });
+
+  const izinSection = m.el.querySelector('#izin-section');
+  let izinMode = (mode === 'izin' || !j.can_attend);
+
+  izinBtn.addEventListener('click', async () => {
+    if (!izinMode) {
+      izinMode = true;
+      izinSection.classList.remove('hidden');
+      izinBtn.textContent = '📤 Kirim Izin';
+      hadirBtn.hidden = true;
+      m.el.querySelector('#catatan-izin').focus();
+      return;
+    }
+    const catatan = m.el.querySelector('#catatan-izin').value.trim();
+    if (!catatan) { UI.toast('Mohon isi alasan tidak hadir', 'warning'); return; }
+
+    izinBtn.disabled = true;
+    Utils.showLoader(true);
+    const res = await BizLogic.izin({ id_jadwal: idJadwal, id_peserta: Auth.getId(), catatan });
+    Utils.showLoader(false);
+    izinBtn.disabled = false;
+
+    if (res.success) { UI.toast(res.message, 'success'); m.close(); loadDashboard(); }
+    else UI.toast(res.message, 'error');
+  });
+
+  hadirBtn.addEventListener('click', async () => {
+    hadirBtn.disabled = true;
+    Utils.showLoader(true);
+    const res = await BizLogic.absen({ id_jadwal: idJadwal, id_peserta: Auth.getId() });
+    Utils.showLoader(false);
+    hadirBtn.disabled = false;
+
+    if (res.success) { UI.toast(res.message, 'success'); m.close(); loadDashboard(); }
+    else UI.toast(res.message, 'error', { duration: 5000 });
+  });
+
+  const cancel = document.createElement('button');
+  cancel.className = 'btn btn-secondary';
+  cancel.textContent = 'Batal';
+  cancel.addEventListener('click', () => m.close());
+
+  footer.appendChild(cancel);
+  footer.appendChild(izinBtn);
+  footer.appendChild(hadirBtn);
+  m.el.appendChild(footer);
+}
+
+/* =====================================================================
+   BERITA
    ===================================================================== */
 let beritaCachePeserta = [];
 
 function loadBeritaPeserta() {
-  const user = (Auth && Auth.getUser && Auth.getUser()) || {};
-  const kelas = user.kelas || user.Kelas || '';
-  const res = BizLogic.getAllBerita({ kelas });
+  const peserta = Store.findPeserta(Auth.getId());
+  const res = BizLogic.getAllBerita({ kelas: (peserta && peserta.Kelas) || '' });
   if (!res.success) return;
   beritaCachePeserta = res.data || [];
   renderBeritaPeserta();
@@ -410,334 +742,140 @@ function renderBeritaPeserta() {
   const list = document.getElementById('berita-list');
   const count = document.getElementById('berita-count');
   if (!section || !list) return;
+
   if (!beritaCachePeserta.length) { section.hidden = true; return; }
   section.hidden = false;
-  if (count) count.textContent = beritaCachePeserta.length;
-  list.innerHTML = beritaCachePeserta.map((b, i) => `
-    <article class="berita-card" role="button" tabindex="0"
-        onclick="openBeritaPesertaModal(${i})" onkeydown="if(event.key==='Enter'){openBeritaPesertaModal(${i})}">
-      <div class="berita-card__date">${Utils.formatDate(b.Tanggal)}</div>
-      <h4 class="berita-card__title">${Utils.escapeHtml(b.Judul)}</h4>
-      <p class="berita-card__excerpt">${Utils.escapeHtml((b.Deskripsi || '').substring(0, 110))}${(b.Deskripsi || '').length > 110 ? '…' : ''}</p>
-      <span class="berita-card__cta">Baca selengkapnya →</span>
-    </article>`).join('');
+  count.textContent = beritaCachePeserta.length;
+
+  list.innerHTML = beritaCachePeserta.map((b, i) =>
+    '<article class="berita-card" role="button" tabindex="0" data-berita="' + i + '">' +
+      '<div class="berita-card__date">' + WITA.formatDate(b.Tanggal) +
+        (b.has_file ? ' • 📎 ' + Utils.escapeHtml(b.file_label) : '') + '</div>' +
+      '<h4 class="berita-card__title">' + Utils.escapeHtml(b.Judul) + '</h4>' +
+      '<p class="berita-card__excerpt">' +
+        Utils.escapeHtml((b.Deskripsi || '').substring(0, 110)) +
+        ((b.Deskripsi || '').length > 110 ? '…' : '') + '</p>' +
+      '<span class="berita-card__cta">Baca selengkapnya →</span>' +
+    '</article>').join('');
+
+  list.querySelectorAll('[data-berita]').forEach((card) => {
+    const open = () => openBeritaPesertaModal(Number(card.dataset.berita));
+    card.addEventListener('click', open);
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter') open(); });
+  });
 }
 
 function openBeritaPesertaModal(i) {
   const b = beritaCachePeserta[i];
   if (!b) return;
-  const link = b.Link
-    ? `<a href="${Utils.escapeHtml(b.Link)}" target="_blank" rel="noopener" class="btn btn-accent btn-block" style="margin-top:14px;">🔗 Buka Sumber Informasi</a>`
+
+  const lampiran = b.has_file
+    ? '<a href="' + Utils.escapeHtml(b.File_Url) + '" target="_blank" rel="noopener" ' +
+      'class="btn btn-secondary btn-block" style="margin-top:12px;">📎 Buka Lampiran (' +
+      Utils.escapeHtml(b.file_label) + ')</a>'
     : '';
+  const link = b.Link
+    ? '<a href="' + Utils.escapeHtml(b.Link) + '" target="_blank" rel="noopener" ' +
+      'class="btn btn-accent btn-block" style="margin-top:10px;">🔗 Buka Sumber Informasi</a>'
+    : '';
+
   UI.modal({
-    title: Utils.escapeHtml(b.Judul),
+    title: b.Judul,
     size: 'md',
-    body: `<div class="berita-modal-date">📅 ${Utils.formatDateLong(b.Tanggal)}</div>
-      <p class="berita-modal-desc">${Utils.escapeHtml(b.Deskripsi || '-').replace(/\n/g, '<br>')}</p>${link}`,
+    body:
+      '<div class="berita-modal-date">📅 ' + WITA.formatDateLong(b.Tanggal) +
+        (b.nama_penulis ? ' • ✍️ ' + Utils.escapeHtml(b.nama_penulis) : '') + '</div>' +
+      '<p class="berita-modal-desc">' +
+        Utils.escapeHtml(b.Deskripsi || '-').replace(/\n/g, '<br>') + '</p>' +
+      lampiran + link,
     actions: [{ label: 'Tutup', variant: 'secondary' }]
   });
 }
 
-/**
- * Pengingat jadwal yang PERLU DITINDAKLANJUTI (belum absen/izin), tampil sebagai
- * kartu bersih ala task-section admin — klik kartu → buka modal absen/izin.
- * Section otomatis tersembunyi bila tidak ada jadwal yang perlu ditindaklanjuti.
- */
-function renderUpcomingReminder() {
-  const section  = document.getElementById('upcoming-reminder-section');
-  const scroller = document.getElementById('reminder-scroller');
-  const badge    = document.getElementById('reminder-count');
-  if (!section || !scroller) return;
-
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const todayISO = Utils.formatDateInput(today);
-
-  const items = cacheJadwalPeserta
-    .filter(j => new Date(j.Tanggal) >= today
-                 && String(j.Status).toLowerCase() === 'aktif'
-                 && !j.sudah_absen)
-    .sort((a, b) => new Date(a.Tanggal) - new Date(b.Tanggal))
-    .slice(0, 5); // batasi agar scroller tetap ringkas
-
-  if (!items.length) { section.hidden = true; scroller.innerHTML = ''; return; }
-  section.hidden = false;
-  if (badge) badge.textContent = items.length;
-
-  scroller.innerHTML = items.map(j => {
-    const isToday = jadwalDateISO(j) === todayISO;
-    const tag = isToday ? '⏰ Hari Ini' : '📅 Akan Datang';
-    const personalBadge = j.is_personal
-      ? `<span class="badge badge-personal" title="Jadwal personal">⭐</span>`
-      : '';
-    return `
-      <div class="reminder-card${isToday ? ' is-today' : ''}" data-jadwal-id="${j.Id_Jadwal}" role="button" tabindex="0"
-          onclick="openAbsenModal('${j.Id_Jadwal}')"
-          onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openAbsenModal('${j.Id_Jadwal}')}">
-        <span class="reminder-card__tag">${tag}</span>
-        <div class="reminder-card__title">${Utils.escapeHtml(j.Kelas)} ${personalBadge}</div>
-        <div class="reminder-card__meta">
-          <span>📅 ${Utils.escapeHtml(Utils.formatDateLong(j.Tanggal))}</span>
-          <span>🕐 ${Utils.escapeHtml(j.Pukul)}</span>
-          <span>📍 ${Utils.escapeHtml(j.Lokasi)}</span>
-        </div>
-        <div class="reminder-card__cta">Absen / Izin sekarang ›</div>
-      </div>`;
-  }).join('');
-}
-
 /* =====================================================================
-   MODAL ABSEN — full version dari kode kedua (checklist equipment)
+   RAPOR
    ===================================================================== */
-function openAbsenModal(idJadwal) {
-  // Defensive: kalau CONFIG.EQUIPMENT_INFO tidak ada, fallback ke list kosong
-  const eq = (typeof CONFIG !== 'undefined' && CONFIG.EQUIPMENT_INFO) ? CONFIG.EQUIPMENT_INFO : {
-    pemula: [], lanjut: [], lain: [], tambahan: []
-  };
-
-  const html = `
-    <div class="modal-backdrop active" id="m-absen" data-jadwal-id="${idJadwal}">
-      <div class="modal" style="max-width:560px;">
-        <div class="modal-header">
-          <h3>📋 Konfirmasi Absensi</h3>
-          <button class="modal-close" onclick="closeAbsenModal()">×</button>
-        </div>
-        <div class="modal-body">
-          <p style="margin-bottom:14px;">Sebelum melakukan absensi, mohon perhatikan informasi peralatan dan persiapan latihan berikut:</p>
-
-          <div class="equipment-section">
-            <h4>🏊 Peralatan Pribadi Selama Latihan</h4>
-
-            <details class="equipment-detail" open>
-              <summary><strong>A. Pemula</strong></summary>
-              <ul>${eq.pemula.map(i => `<li>${Utils.escapeHtml(i)}</li>`).join('')}</ul>
-            </details>
-
-            <details class="equipment-detail">
-              <summary><strong>B. Tingkat Lanjut</strong> <small>(menguasai ≥ 2 gaya, 25 m)</small></summary>
-              <ul>${eq.lanjut.map(i => `<li>${Utils.escapeHtml(i)}</li>`).join('')}</ul>
-            </details>
-
-            <details class="equipment-detail">
-              <summary><strong>C. Perlengkapan Lain</strong></summary>
-              <ul>${eq.lain.map(i => `<li>${Utils.escapeHtml(i)}</li>`).join('')}</ul>
-            </details>
-
-            <details class="equipment-detail">
-              <summary><strong>D. Informasi Tambahan</strong></summary>
-              <ul>${eq.tambahan.map(i => `<li>${Utils.escapeHtml(i)}</li>`).join('')}</ul>
-            </details>
-          </div>
-
-          <label class="checkbox-row">
-            <input type="checkbox" id="agree-checkbox" onchange="toggleAbsenSubmit()">
-            <span>Saya telah memahami dan akan mempersiapkan peralatan yang diperlukan untuk latihan.</span>
-          </label>
-
-          <div id="izin-section" class="hidden">
-            <hr class="divider">
-            <label>Alasan tidak hadir <span class="text-muted">(wajib diisi)</span></label>
-            <textarea id="catatan-izin" class="form-control" rows="3" placeholder="Contoh: Sakit, ada acara keluarga, dll..."></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="closeAbsenModal()">Batal</button>
-          <button class="btn btn-warning" id="btn-izin" onclick="toggleIzinForm()">📝 Izin</button>
-          <button class="btn btn-primary" id="btn-confirm-absen" data-jadwal-id="${idJadwal}" onclick="submitAbsen('${idJadwal}')" disabled>✓ Ya, Saya Hadir</button>
-        </div>
-      </div>
-    </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
-}
-
-function closeAbsenModal() {
-  const m = document.getElementById('m-absen');
-  if (m) m.remove();
-}
-
-function toggleAbsenSubmit() {
-  const checked = document.getElementById('agree-checkbox').checked;
-  const btn = document.getElementById('btn-confirm-absen');
-  const izinActive = !document.getElementById('izin-section').classList.contains('hidden');
-  btn.disabled = !(checked && !izinActive);
-}
-
-function toggleIzinForm() {
-  const sec = document.getElementById('izin-section');
-  const btnConfirm = document.getElementById('btn-confirm-absen');
-  const btnIzin = document.getElementById('btn-izin');
-  const willActivate = sec.classList.contains('hidden');
-
-  sec.classList.toggle('hidden');
-  if (willActivate) {
-    btnConfirm.textContent = '📤 Kirim Izin';
-    btnConfirm.disabled = false;
-    btnConfirm.onclick = () => submitIzin();
-    btnIzin.textContent = '↩ Kembali';
-  } else {
-    btnConfirm.textContent = '✓ Ya, Saya Hadir';
-    btnIzin.textContent = '📝 Izin';
-    const idJadwal = btnConfirm.dataset.jadwalId;
-    btnConfirm.onclick = () => submitAbsen(idJadwal);
-    toggleAbsenSubmit();
-  }
-}
-
-async function submitAbsen(idJadwal) {
-  if (!document.getElementById('agree-checkbox').checked) {
-    Utils.notify('Mohon centang persetujuan peralatan terlebih dahulu', 'warning');
-    return;
-  }
-  Utils.showLoader && Utils.showLoader(true);
-  const user = getCurrentUser();
-  const res = await BizLogic.absen({ id_jadwal: idJadwal, id_peserta: user.id });
-  Utils.showLoader && Utils.showLoader(false);
-  if (res.success) {
-    Utils.notify(res.message, 'success');
-    closeAbsenModal();
-    loadDashboard();
-  } else {
-    Utils.notify(res.message, 'error');
-  }
-}
-
-async function submitIzin() {
-  const catatan = document.getElementById('catatan-izin').value.trim();
-  if (!catatan) {
-    Utils.notify('Mohon isi alasan tidak hadir', 'warning');
-    return;
-  }
-  const modal = document.getElementById('m-absen');
-  const btn = document.getElementById('btn-confirm-absen');
-  const idJadwal = (modal && modal.dataset.jadwalId) || (btn && btn.dataset.jadwalId);
-  if (!idJadwal) {
-    Utils.notify('Gagal mengidentifikasi jadwal', 'error');
-    return;
-  }
-  Utils.showLoader && Utils.showLoader(true);
-  const user = getCurrentUser();
-  const res = await BizLogic.izin({ id_jadwal: idJadwal, id_peserta: user.id, catatan });
-  Utils.showLoader && Utils.showLoader(false);
-  if (res.success) {
-    Utils.notify(res.message, 'success');
-    closeAbsenModal();
-    loadDashboard();
-  } else {
-    Utils.notify(res.message, 'error');
-  }
-}
-
-/* =====================================================================
-   RAPOR — Tabel 4 gaya × 2 jarak + Download PDF (logika dari kode 1)
-   ===================================================================== */
-async function openRaporModal() {
-  const user = getCurrentUser();
-
-  const raporRes = BizLogic.getRaporPeserta({ id_peserta: user.id });
-  const pesertaRes = BizLogic.getDataLengkapPeserta({ id_peserta: user.id });
+function openRaporModal() {
+  const id = Auth.getId();
+  const raporRes = BizLogic.getRaporPeserta({ id_peserta: id });
+  const pesertaRes = BizLogic.getDataLengkapPeserta({ id_peserta: id });
 
   if (pesertaRes.success) pesertaLengkapCache = pesertaRes.data;
-  raporCache = raporRes.success ? raporRes.data : null;
+  raporCache = raporRes.data || null;
 
-  if (!raporRes.success) {
-    Utils.notify(raporRes.message || 'Gagal memuat rapor', 'error');
-    return;
-  }
-
-  let modalBody;
-  if (!raporRes.data) {
-    modalBody = `
-      <div class="empty-state">
-        <div class="icon">📝</div>
-        <h3>Rapor Belum Tersedia</h3>
-        <p>Rapor akan tersedia setelah pelatih mengisi data evaluasi. Cek kembali nanti.</p>
-      </div>`;
+  let body;
+  if (!raporCache) {
+    body = '<div class="empty-state"><div class="icon">📝</div><h3>Rapor Belum Tersedia</h3>' +
+           '<p>Rapor akan tersedia setelah pelatih mengisi data evaluasi Anda.</p></div>';
   } else {
-    const r = raporRes.data;
-    const fmt = v => (v && String(v).trim() !== '' && String(v).trim() !== '-') ? String(v).trim() : '-';
-    const _periode = (typeof getSemesterPeriode === 'function')
-      ? getSemesterPeriode(pesertaRes.data?.Tanggal_Mulai)
-      : { start: pesertaRes.data?.Tanggal_Mulai, end: pesertaRes.data?.Tanggal_Akhir };
-    const periodeStart = _periode.start;
-    const periodeEnd   = _periode.end;
+    const r = raporCache;
+    const fmt = (v) => (v && String(v).trim() && String(v).trim() !== '-') ? String(v).trim() : '-';
+    const periode = getSemesterPeriode(pesertaLengkapCache && pesertaLengkapCache.Tanggal_Mulai);
 
-    modalBody = `
-      <div class="rapor-display">
-        <div class="rapor-section">
-          <h4 class="rapor-section-title">📊 Capaian Hasil Latihan Renang</h4>
-          <p class="rapor-periode">Periode:
-            <em>${Utils.formatDateLong(periodeStart)} s.d ${Utils.formatDateLong(periodeEnd)}</em>
-          </p>
-          <div class="rapor-table-scroll">
-          <table class="rapor-table">
-            <thead>
-              <tr>
-                <th>NO.</th><th>GAYA RENANG</th>
-                <th>25 M<br><small>(Dengan Pelampung)</small></th>
-                <th>25 M<br><small>(Tanpa Pelampung)</small></th>
-                <th>50 M</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td>1</td><td>Gaya Bebas</td>    <td>${fmt(r.Waktu_25_Bebas_Pelampung)}</td>    <td>${fmt(r.Waktu_25_Bebas)}</td>    <td>${fmt(r.Waktu_50_Bebas)}</td></tr>
-              <tr><td>2</td><td>Gaya Dada</td>     <td>${fmt(r.Waktu_25_Dada_Pelampung)}</td>     <td>${fmt(r.Waktu_25_Dada)}</td>     <td>${fmt(r.Waktu_50_Dada)}</td></tr>
-              <tr><td>3</td><td>Gaya Kupu</td>     <td>${fmt(r.Waktu_25_Kupu_Pelampung)}</td>     <td>${fmt(r.Waktu_25_Kupu)}</td>     <td>${fmt(r.Waktu_50_Kupu)}</td></tr>
-              <tr><td>4</td><td>Gaya Punggung</td> <td>${fmt(r.Waktu_25_Punggung_Pelampung)}</td> <td>${fmt(r.Waktu_25_Punggung)}</td> <td>${fmt(r.Waktu_50_Punggung)}</td></tr>
-            </tbody>
-          </table>
-          </div>
-        </div>
+    const rows = CONFIG.GAYA_RENANG.map((g, i) =>
+      '<tr><td>' + (i + 1) + '</td><td>' + g.label + '</td>' +
+      '<td>' + fmt(r['Waktu_25_' + g.key + '_Pelampung']) + '</td>' +
+      '<td>' + fmt(r['Waktu_25_' + g.key]) + '</td>' +
+      '<td>' + fmt(r['Waktu_50_' + g.key]) + '</td></tr>').join('');
 
-        <div class="rapor-section">
-          <div class="rapor-field">
-            <label>Predikat</label>
-            <div class="rapor-value-box">${Utils.escapeHtml(r.Predikat) || '-'}</div>
-          </div>
-          <div class="rapor-field">
-            <label>Deskripsi</label>
-            <div class="rapor-value-box tall">${Utils.escapeHtml(r.Catatan) || '-'}</div>
-          </div>
-        </div>
-
-        <p class="rapor-pelatih">Pelatih: <strong>${Utils.escapeHtml(r.Nama_Pelatih || '-')}</strong></p>
-      </div>`;
+    body =
+      '<div class="rapor-display">' +
+        '<div class="rapor-section">' +
+          '<h4 class="rapor-section-title">📊 Capaian Hasil Latihan Renang</h4>' +
+          '<p class="rapor-periode">Periode: <em>' +
+            WITA.formatDateLong(periode.start) + ' s.d ' + WITA.formatDateLong(periode.end) + '</em></p>' +
+          '<div class="rapor-table-scroll"><table class="rapor-table">' +
+            '<thead><tr><th>NO.</th><th>GAYA RENANG</th>' +
+              '<th>25 M<br><small>(Dengan Pelampung)</small></th>' +
+              '<th>25 M<br><small>(Tanpa Pelampung)</small></th>' +
+              '<th>50 M</th></tr></thead>' +
+            '<tbody>' + rows + '</tbody></table></div>' +
+        '</div>' +
+        '<div class="rapor-section">' +
+          '<div class="rapor-field"><label>Predikat</label>' +
+            '<div class="rapor-value-box">' + (Utils.escapeHtml(r.Predikat) || '-') + '</div></div>' +
+          '<div class="rapor-field"><label>Deskripsi</label>' +
+            '<div class="rapor-value-box tall">' + (Utils.escapeHtml(r.Catatan) || '-') + '</div></div>' +
+        '</div>' +
+        '<p class="rapor-pelatih">Pelatih penilai: <strong>' +
+          (Utils.escapeHtml(r.Nama_Pelatih) || '-') + '</strong></p>' +
+      '</div>';
   }
 
-  const downloadBtn = raporRes.data
-    ? `<button class="btn btn-accent" onclick="downloadRaporPDF()">📥 Download PDF</button>`
-    : '';
+  const m = UI.modal({
+    title: '📒 Rapor Latihan',
+    size: 'md',
+    body,
+    actions: [{ label: 'Tutup', variant: 'secondary' }]
+  });
 
-  const html = `
-    <div class="modal-backdrop active" id="rapor-modal">
-      <div class="modal modal-md">
-        <div class="modal-header">
-          <h3>📒 Rapor Latihan</h3>
-          <button class="modal-close" onclick="document.getElementById('rapor-modal').remove()">×</button>
-        </div>
-        <div class="modal-body">${modalBody}</div>
-        <div class="modal-footer">
-          ${downloadBtn}
-          <button class="btn btn-secondary" onclick="document.getElementById('rapor-modal').remove()">Tutup</button>
-        </div>
-      </div>
-    </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
+  if (raporCache) {
+    const dl = document.createElement('button');
+    dl.className = 'btn btn-accent btn-block';
+    dl.style.marginTop = '12px';
+    dl.textContent = '📥 Unduh PDF';
+    dl.addEventListener('click', () => downloadRaporPDF(dl));
+    m.el.querySelector('.modal-body').appendChild(dl);
+  }
 }
 
-async function downloadRaporPDF() {
+async function downloadRaporPDF(btn) {
   if (!pesertaLengkapCache) {
-    const user = getCurrentUser();
-    const res = BizLogic.getDataLengkapPeserta({ id_peserta: user.id });
-    if (!res.success) { Utils.notify('Gagal memuat data peserta', 'error'); return; }
+    const res = BizLogic.getDataLengkapPeserta({ id_peserta: Auth.getId() });
+    if (!res.success) { UI.toast('Gagal memuat data peserta', 'error'); return; }
     pesertaLengkapCache = res.data;
   }
-  if (!raporCache) { Utils.notify('Data rapor tidak tersedia', 'error'); return; }
+  if (!raporCache) { UI.toast('Data rapor tidak tersedia', 'error'); return; }
 
-  Utils.showLoader && Utils.showLoader(true);
+  if (btn) btn.disabled = true;
+  Utils.showLoader(true);
   try {
-    await PDFRapor.generate(pesertaLengkapCache, raporCache, raporCache.Nama_Pelatih);
+    await PDFRapor.generate(pesertaLengkapCache, raporCache);
   } catch (err) {
     console.error(err);
-    Utils.notify('Gagal generate PDF: ' + err.message, 'error');
+    UI.toast('Gagal membuat PDF: ' + err.message, 'error');
+  } finally {
+    Utils.showLoader(false);
+    if (btn) btn.disabled = false;
   }
-  Utils.showLoader && Utils.showLoader(false);
 }

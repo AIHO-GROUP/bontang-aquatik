@@ -1,19 +1,24 @@
 /**
  * ===================================================================
- * db.js — Lapisan penyimpanan lokal (IndexedDB) untuk arsitektur offline-first
+ * db.js — Penyimpanan lokal (IndexedDB) untuk arsitektur offline-first
  * ===================================================================
- * Menyimpan seluruh data yang diperoleh dari operasi Read (Peserta, Jadwal,
- * Kehadiran, Rapor, Berita, Pelatih, Settings) sebagai CACHE UTAMA di
- * perangkat, plus antrean "Outbox" untuk operasi Create/Update/Delete yang
- * gagal terkirim saat perangkat sedang offline.
+ * Menyimpan seluruh data hasil operasi Read sebagai CACHE UTAMA di
+ * perangkat, plus antrean "Outbox" untuk operasi Create/Update/Delete
+ * yang gagal terkirim saat perangkat sedang offline.
  *
- * File ini TIDAK berisi business logic apa pun — murni get/put/delete
- * key-value per "store" (mirip tabel). Dipakai oleh sync.js.
+ * File ini TIDAK berisi business logic — murni get/put/delete per store.
+ *
+ * VERSI 2: menambahkan store "Enrollment" (riwayat periode pelatihan).
+ * Kenaikan versi memicu onupgradeneeded yang HANYA membuat store baru;
+ * seluruh data yang sudah ada di perangkat pengguna tetap utuh.
  */
 const LocalDB = (() => {
   const DB_NAME = 'swim_offline_db';
-  const DB_VERSION = 1;
-  const STORES = ['Peserta', 'Jadwal', 'Kehadiran', 'Rapor', 'Berita', 'Pelatih', 'Settings', 'Outbox'];
+  const DB_VERSION = 2;
+  const STORES = [
+    'Peserta', 'Jadwal', 'Kehadiran', 'Rapor', 'Berita',
+    'Pelatih', 'Enrollment', 'Settings', 'Outbox'
+  ];
 
   let dbPromise = null;
 
@@ -24,14 +29,15 @@ const LocalDB = (() => {
       const req = indexedDB.open(DB_NAME, DB_VERSION);
       req.onupgradeneeded = () => {
         const db = req.result;
-        STORES.forEach(name => {
-          if (db.objectStoreNames.contains(name)) return;
+        STORES.forEach((name) => {
+          if (db.objectStoreNames.contains(name)) return;   // jangan sentuh store lama
           if (name === 'Outbox') db.createObjectStore(name, { keyPath: '_outboxId', autoIncrement: true });
           else db.createObjectStore(name, { keyPath: '_key' });
         });
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
+      req.onblocked = () => reject(new Error('Database lokal sedang dipakai tab lain'));
     });
     return dbPromise;
   }
@@ -41,9 +47,9 @@ const LocalDB = (() => {
     return db.transaction(storeName, mode).objectStore(storeName);
   }
 
-  /** Cari nama kolom Id_... untuk dipakai sebagai kunci lokal; fallback ke kolom pertama. */
+  /** Cari kolom Id_... untuk dipakai sebagai kunci lokal; fallback ke kolom pertama. */
   function keyOf(item) {
-    const idField = Object.keys(item).find(k => /^Id_/.test(k)) || Object.keys(item)[0];
+    const idField = Object.keys(item).find((k) => /^Id_/.test(k)) || Object.keys(item)[0];
     return item[idField] != null ? String(item[idField]) : '';
   }
 
@@ -56,7 +62,7 @@ const LocalDB = (() => {
     return item;
   }
 
-  /** Ganti SELURUH isi store dengan array baru (dipakai setelah Read dari server). */
+  /** Ganti SELURUH isi store dengan array baru (setelah Read dari server). */
   async function replaceAll(storeName, items) {
     const db = await open();
     return new Promise((resolve, reject) => {
@@ -64,8 +70,7 @@ const LocalDB = (() => {
       const os = t.objectStore(storeName);
       os.clear();
       (items || []).forEach((item, i) => {
-        const k = keyOf(item) || ('row' + i);
-        os.put(Object.assign({ _key: k }, item));
+        os.put(Object.assign({ _key: keyOf(item) || ('row' + i) }, item));
       });
       t.oncomplete = () => resolve(true);
       t.onerror = () => reject(t.error);
@@ -87,6 +92,19 @@ const LocalDB = (() => {
       const req = os.put(Object.assign({ _key: keyOf(item) }, item));
       req.onsuccess = () => resolve(true);
       req.onerror = () => reject(req.error);
+    });
+  }
+
+  /** Simpan banyak baris dalam SATU transaksi (jauh lebih cepat dari put berulang). */
+  async function putMany(storeName, items) {
+    if (!items || !items.length) return true;
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const t = db.transaction(storeName, 'readwrite');
+      const os = t.objectStore(storeName);
+      items.forEach((item) => os.put(Object.assign({ _key: keyOf(item) }, item)));
+      t.oncomplete = () => resolve(true);
+      t.onerror = () => reject(t.error);
     });
   }
 
@@ -125,5 +143,5 @@ const LocalDB = (() => {
     });
   }
 
-  return { open, replaceAll, getAll, put, remove, outboxAdd, outboxAll, outboxRemove, STORES };
+  return { open, replaceAll, getAll, put, putMany, remove, outboxAdd, outboxAll, outboxRemove, STORES };
 })();

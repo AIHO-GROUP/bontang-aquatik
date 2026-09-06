@@ -1,52 +1,75 @@
 /**
- * Login. Sesi disimpan persisten (localStorage via Auth) sehingga user tidak
- * perlu login ulang tiap membuka PWA. Setelah login, route default langsung
- * ke dashboard (peserta) / admin panel (admin) — tidak kembali ke index.
+ * login.js — Halaman masuk
  *
- * Autentikasi kini dilakukan SEPENUHNYA secara lokal: data Peserta & Pelatih
- * disinkronkan ke cache perangkat (IndexedDB) lebih dulu, lalu username/
- * password dicocokkan dari cache tersebut (lihat BizLogic.login) — tanpa
- * request login ke Apps Script setiap kali pengguna membuka aplikasi.
+ * Autentikasi dilakukan sepenuhnya terhadap cache lokal: data Peserta,
+ * Pelatih, dan Enrollment disinkronkan lebih dulu, lalu username/password
+ * dicocokkan di perangkat (lihat BizLogic.login). Tidak ada request login
+ * per percobaan, sehingga tetap cepat walau banyak pengguna bersamaan.
+ *
+ * PERUBAHAN KEBIJAKAN: peserta dengan pembayaran belum lunas kini TETAP
+ * dapat masuk. Pembatasan dipindahkan ke akses jadwal di dashboard.
  */
 document.addEventListener('DOMContentLoaded', async () => {
   Utils.mountNavbar('login');
 
-  // Sudah login -> langsung ke dashboard/admin (hindari halaman login).
+  // Sudah punya sesi -> langsung ke dashboard yang sesuai perannya.
   const session = Auth.getSession();
   if (session) {
-    window.location.replace(session.role === 'admin' ? 'admin.html' : 'peserta.html');
+    window.location.replace(Auth.homeFor(session.role));
     return;
   }
 
-  // Sinkronkan cache Peserta & Pelatih (dibutuhkan agar login bisa dicocokkan lokal).
-  await Sync.init(['Peserta', 'Pelatih']);
+  const form = document.getElementById('form-login');
+  const btn = form.querySelector('button[type="submit"]');
+  const status = document.getElementById('login-status');
 
-  // SVG eye toggle reusable
+  // Data login belum tersedia sampai sinkronisasi pertama selesai.
+  let siap = false;
+  const setSiap = (v) => {
+    siap = v;
+    btn.disabled = !v;
+    if (status) status.textContent = v ? '' : 'Menyiapkan data…';
+  };
+  setSiap(false);
+
+  await Sync.init(['Peserta', 'Pelatih', 'Enrollment'], () => setSiap(true));
+  // Cache lokal sudah cukup untuk login walau sinkronisasi server tertunda.
+  if (Store.peserta().length || Store.pelatih().length) setSiap(true);
+  // Perangkat baru & offline: beri tahu, jangan biarkan tombol mati selamanya.
+  setTimeout(() => {
+    if (!siap) {
+      setSiap(true);
+      if (!navigator.onLine) UI.toast('Anda sedang offline. Login hanya bisa untuk akun yang pernah masuk di perangkat ini.', 'warning');
+    }
+  }, 6000);
+
   const passInput = document.getElementById('password');
   const passToggle = document.getElementById('togglePassword');
   if (passInput && passToggle) UI.passwordToggle(passInput, passToggle);
 
-  document.getElementById('form-login').addEventListener('submit', async (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const data = { username: fd.get('username').trim(), password: fd.get('password') };
+    const data = {
+      username: String(fd.get('username') || '').trim(),
+      password: String(fd.get('password') || '')
+    };
     if (!data.username || !data.password) {
       UI.toast('Username dan password wajib diisi', 'warning');
       return;
     }
-    const btn = e.target.querySelector('button[type="submit"]');
-    if (btn) btn.disabled = true;
-    const res = BizLogic.login(data);
-    if (btn) btn.disabled = false;
 
-    if (res.success) {
-      Auth.setSession(res.role, res.data);
-      UI.toast(`Selamat datang, ${res.data.nama || res.data.username}!`, 'success');
-      setTimeout(() => {
-        window.location.href = res.role === 'admin' ? 'admin.html' : 'peserta.html';
-      }, 700);
-    } else {
+    btn.disabled = true;
+    const res = BizLogic.login(data);
+    btn.disabled = false;
+
+    if (!res.success) {
       UI.toast(res.message || 'Login gagal', 'error');
+      return;
     }
+
+    Auth.setSession(res.role, res.data);
+    UI.toast('Selamat datang, ' + (res.data.nama || res.data.username) + '!', 'success');
+    setTimeout(() => { window.location.href = Auth.homeFor(res.role); }, 600);
   });
 });

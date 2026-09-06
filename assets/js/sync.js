@@ -2,70 +2,123 @@
  * ===================================================================
  * sync.js — Orkestrasi cache lokal (offline-first)
  * ===================================================================
- * Store : representasi in-memory dari seluruh data yang sudah di-cache
- *         (dimuat dari IndexedDB). Ini yang dibaca oleh business-logic.js
- *         untuk searching/filtering/sorting/kalkulasi — TANPA request
- *         ulang ke Apps Script.
- * Sync  : mengambil data dari backend (operasi Read) lalu menyimpannya ke
- *         IndexedDB sebagai cache utama + memperbarui Store.
+ * Store : representasi in-memory seluruh data yang sudah di-cache.
+ *         Inilah yang dibaca lapisan domain/*.js untuk pencarian,
+ *         filter, sortir, pagination, dan kalkulasi — TANPA request
+ *         ulang ke server.
+ * Sync  : mengambil data dari Supabase lalu menyimpannya ke IndexedDB
+ *         sebagai cache utama + memperbarui Store.
  *
- * Sinkronisasi ke server HANYA terjadi saat:
- *   1) Aplikasi dibuka / melakukan proses sinkronisasi (Sync.init di tiap
- *      halaman) — mengambil data terbaru via operasi Read, dijalankan di
- *      latar belakang setelah cache lokal langsung ditampilkan.
- *   2) Operasi Create / Update / Delete (lihat business-logic.js).
- * Di luar itu, seluruh pencarian/filter/sort/hitung memakai data lokal.
+ * Request ke server HANYA terjadi saat:
+ *   1) halaman dibuka (Sync.init) — berjalan di latar belakang setelah
+ *      cache lokal langsung ditampilkan, sehingga UI tidak pernah
+ *      menunggu jaringan;
+ *   2) operasi Create/Update/Delete.
+ * Di luar itu semua interaksi (ganti tab, filter, pindah halaman
+ * pagination) memakai data lokal.
  */
 const Store = {
-  data: { Peserta: [], Jadwal: [], Kehadiran: [], Rapor: [], Berita: [], Pelatih: [], Settings: {} },
+  data: {
+    Peserta: [], Jadwal: [], Kehadiran: [], Rapor: [],
+    Berita: [], Pelatih: [], Enrollment: [], Settings: {}
+  },
 
-  peserta()   { return this.data.Peserta; },
-  jadwal()    { return this.data.Jadwal; },
-  kehadiran() { return this.data.Kehadiran; },
-  rapor()     { return this.data.Rapor; },
-  berita()    { return this.data.Berita; },
-  pelatih()   { return this.data.Pelatih; },
-  settings()  { return this.data.Settings; },
+  peserta()    { return this.data.Peserta; },
+  jadwal()     { return this.data.Jadwal; },
+  kehadiran()  { return this.data.Kehadiran; },
+  rapor()      { return this.data.Rapor; },
+  berita()     { return this.data.Berita; },
+  pelatih()    { return this.data.Pelatih; },
+  enrollment() { return this.data.Enrollment; },
+  settings()   { return this.data.Settings; },
 
   setEntity(name, items) { this.data[name] = items || []; },
   setSettings(obj) { this.data.Settings = obj || {}; },
 
+  /* ---------- Indeks ringan, dibangun ulang setiap sinkronisasi ----------
+     Menghindari pencarian linier berulang (find di dalam map) yang menjadi
+     O(n*m) saat jumlah peserta & jadwal bertambah. */
+  _index: null,
+
+  buildIndex() {
+    const byPeserta = new Map();
+    this.data.Peserta.forEach((p) => byPeserta.set(p.Id_Peserta, p));
+
+    const byPelatih = new Map();
+    this.data.Pelatih.forEach((p) => byPelatih.set(p.Id_Pelatih, p));
+
+    const enrollByPeserta = new Map();
+    this.data.Enrollment.forEach((e) => {
+      if (!enrollByPeserta.has(e.Id_Peserta)) enrollByPeserta.set(e.Id_Peserta, []);
+      enrollByPeserta.get(e.Id_Peserta).push(e);
+    });
+    enrollByPeserta.forEach((list) => {
+      list.sort((a, b) => String(a.Tanggal_Mulai).localeCompare(String(b.Tanggal_Mulai)));
+    });
+
+    const kehadiranByJadwal = new Map();
+    const kehadiranByPeserta = new Map();
+    this.data.Kehadiran.forEach((k) => {
+      if (!kehadiranByJadwal.has(k.Id_Jadwal)) kehadiranByJadwal.set(k.Id_Jadwal, []);
+      kehadiranByJadwal.get(k.Id_Jadwal).push(k);
+      if (!kehadiranByPeserta.has(k.Id_Peserta)) kehadiranByPeserta.set(k.Id_Peserta, []);
+      kehadiranByPeserta.get(k.Id_Peserta).push(k);
+    });
+
+    const raporByPeserta = new Map();
+    this.data.Rapor.forEach((r) => raporByPeserta.set(r.Id_Peserta, r));
+
+    this._index = { byPeserta, byPelatih, enrollByPeserta, kehadiranByJadwal, kehadiranByPeserta, raporByPeserta };
+    return this._index;
+  },
+
+  index() { return this._index || this.buildIndex(); },
+
+  findPeserta(id) { return this.index().byPeserta.get(id) || null; },
+  findPelatih(id) { return this.index().byPelatih.get(id) || null; },
+  enrollmentsOf(idPeserta) { return this.index().enrollByPeserta.get(idPeserta) || []; },
+  kehadiranOfJadwal(idJadwal) { return this.index().kehadiranByJadwal.get(idJadwal) || []; },
+  kehadiranOfPeserta(idPeserta) { return this.index().kehadiranByPeserta.get(idPeserta) || []; },
+  raporOf(idPeserta) { return this.index().raporByPeserta.get(idPeserta) || null; },
+
+  /** Panggil setelah mutasi lokal agar indeks tidak basi. */
+  invalidate() { this._index = null; },
+
   async loadFromLocalDB() {
-    const entities = ['Peserta', 'Jadwal', 'Kehadiran', 'Rapor', 'Berita', 'Pelatih'];
+    const entities = ['Peserta', 'Jadwal', 'Kehadiran', 'Rapor', 'Berita', 'Pelatih', 'Enrollment'];
     await Promise.all(entities.map(async (name) => {
-      try { this.data[name] = await LocalDB.getAll(name); } catch (e) { this.data[name] = this.data[name] || []; }
+      try { this.data[name] = await LocalDB.getAll(name); }
+      catch (e) { this.data[name] = this.data[name] || []; }
     }));
-    try {
-      const rows = await LocalDB.getAll('Settings');
-      const obj = {};
-      rows.forEach(r => { if (r && r._settingsKey) obj[r._settingsKey] = r.value; });
-      if (Object.keys(obj).length) this.data.Settings = obj;
-    } catch (e) { /* IndexedDB tidak tersedia — lanjut pakai default {} */ }
+    this.invalidate();
   }
 };
 
-/** Peta nama Store -> nama resource REST di backend. */
+/** Peta nama entitas Store -> nama resource di CrudApi. */
 const ENTITY_RESOURCE = {
   Peserta: 'peserta', Jadwal: 'jadwal', Kehadiran: 'kehadiran',
-  Rapor: 'rapor', Berita: 'berita', Pelatih: 'pelatih'
+  Rapor: 'rapor', Berita: 'berita', Pelatih: 'pelatih', Enrollment: 'enrollment'
 };
 
 const Sync = {
-  /** Ambil data terbaru 1 entitas dari server & perbarui cache lokal + Store. */
+  /** Ambil data terbaru satu entitas dari server & perbarui cache + Store. */
   async pull(entityName, opts = {}) {
     const resource = ENTITY_RESOURCE[entityName];
     if (!resource) return { success: false, message: 'Entitas tidak dikenal: ' + entityName };
     const res = await CrudApi.read(resource, { silent: opts.silent });
     if (res && res.success) {
       Store.setEntity(entityName, res.data || []);
-      try { await LocalDB.replaceAll(entityName, res.data || []); } catch (e) { /* lanjut pakai in-memory saja */ }
+      Store.invalidate();
+      try { await LocalDB.replaceAll(entityName, res.data || []); }
+      catch (e) { /* IndexedDB tidak tersedia — lanjut dengan in-memory */ }
     }
     return res;
   },
 
-  /** Sinkronkan beberapa entitas sekaligus secara paralel (1 gelombang request per sinkronisasi). */
+  /** Sinkronkan beberapa entitas paralel (satu gelombang request). */
   async pullMany(entityNames, opts = {}) {
-    const results = await Promise.all(entityNames.map(name => this.pull(name, opts)));
+    const results = await Promise.all(entityNames.map((name) => this.pull(name, opts)));
+    Store.invalidate();
     const failed = entityNames.filter((_, i) => !(results[i] && results[i].success));
     return { success: failed.length === 0, failed };
   },
@@ -93,66 +146,86 @@ const Sync = {
     const tx = db.transaction('Settings', 'readwrite');
     const os = tx.objectStore('Settings');
     os.clear();
-    Object.keys(Store.settings()).forEach(k => os.put({ _key: k, _settingsKey: k, value: Store.settings()[k] }));
+    const s = Store.settings();
+    Object.keys(s).forEach((k) => os.put({ _key: k, _settingsKey: k, value: s[k] }));
   },
 
   async _loadSettingsFromLocal() {
     try {
       const rows = await LocalDB.getAll('Settings');
       const obj = {};
-      rows.forEach(r => { if (r && r._settingsKey) obj[r._settingsKey] = r.value; });
-      Store.setSettings(obj);
+      rows.forEach((r) => { if (r && r._settingsKey) obj[r._settingsKey] = r.value; });
+      if (Object.keys(obj).length) Store.setSettings(obj);
     } catch (e) { /* abaikan */ }
   },
 
   /**
-   * Inisialisasi tiap halaman: tampilkan cache lokal SEGERA (mendukung mode
-   * offline penuh & TIDAK menunggu jaringan) — promise ini selesai begitu
-   * cache lokal termuat. Sinkronisasi ke server (bila perangkat online)
-   * berjalan di latar belakang sesudahnya dan memanggil onUpdated() begitu
-   * selesai, agar caller bisa me-render ulang dengan data terbaru tanpa
-   * memblokir tampilan awal.
-   * @param {string[]} entityNames  mis. ['Peserta','Jadwal']; sertakan '__settings__' bila perlu Settings.
-   * @param {function} onUpdated    dipanggil setelah sinkronisasi latar belakang selesai (silent, tanpa loader).
+   * Inisialisasi halaman: tampilkan cache lokal SEGERA (mendukung offline
+   * penuh dan tidak menunggu jaringan). Promise selesai begitu cache lokal
+   * termuat. Sinkronisasi server berjalan di latar belakang lalu memanggil
+   * onUpdated() agar caller dapat merender ulang dengan data terbaru.
+   *
+   * @param {string[]} entityNames  mis. ['Peserta','Jadwal']; sertakan
+   *                                '__settings__' bila Settings dibutuhkan.
+   * @param {function} onUpdated    dipanggil setelah sinkronisasi selesai.
    */
   async init(entityNames, onUpdated) {
     const needSettings = entityNames.includes('__settings__');
-    const real = entityNames.filter(e => e !== '__settings__');
+    const real = entityNames.filter((e) => e !== '__settings__');
 
     await Store.loadFromLocalDB();
     if (needSettings) await this._loadSettingsFromLocal();
 
     if (navigator.onLine) {
-      // Sengaja TIDAK di-await — caller sudah bisa render dari cache lokal
-      // sekarang; hasil sinkronisasi server disusulkan lewat onUpdated().
+      // Sengaja TIDAK di-await: caller sudah bisa merender dari cache lokal
+      // sekarang, hasil server disusulkan lewat onUpdated().
       Promise.all([
         this.pullMany(real, { silent: true }),
         needSettings ? this.pullSettings({ silent: true }) : Promise.resolve()
       ]).then(([pullRes]) => {
+        Store.invalidate();
+        if (typeof Auth !== 'undefined' && Auth.syncRoleFromStore) {
+          try { Auth.syncRoleFromStore(); } catch (e) { /* abaikan */ }
+        }
         if (typeof onUpdated === 'function') onUpdated(pullRes);
         this.flushOutbox();
       }).catch(() => { /* abaikan — tetap pakai cache lokal */ });
     }
-    window.addEventListener('online', () => this.flushOutbox());
+
+    if (!this._onlineBound) {
+      this._onlineBound = true;
+      window.addEventListener('online', () => this.flushOutbox());
+    }
   },
 
-  /** Antrekan operasi Create/Update/Delete yang gagal terkirim (mis. sedang offline). */
+  /** Antrekan operasi yang gagal terkirim (mis. sedang offline). */
   async queue(resource, op, payload) {
-    try { await LocalDB.outboxAdd({ resource, op, payload }); } catch (e) { /* IndexedDB tidak tersedia */ }
+    try { await LocalDB.outboxAdd({ resource, op, payload }); }
+    catch (e) { /* IndexedDB tidak tersedia */ }
   },
 
   /** Kirim ulang seluruh antrean Outbox begitu koneksi tersedia kembali. */
   async flushOutbox() {
-    if (!navigator.onLine) return;
-    let items = [];
-    try { items = await LocalDB.outboxAll(); } catch (e) { return; }
-    for (const item of items) {
-      const res = await CrudApi._request(item.resource, item.op, item.payload, { silent: true });
-      if (res && res.success) {
-        try { await LocalDB.outboxRemove(item._outboxId); } catch (e) { /* abaikan */ }
-      } else {
-        break; // masih gagal (mis. masih offline) — coba lagi di kesempatan berikutnya
+    if (!navigator.onLine || this._flushing) return;
+    this._flushing = true;
+    try {
+      let items = [];
+      try { items = await LocalDB.outboxAll(); } catch (e) { return; }
+      for (const item of items) {
+        const res = await CrudApi._request(item.resource, item.op, item.payload, { silent: true });
+        if (res && res.success) {
+          try { await LocalDB.outboxRemove(item._outboxId); } catch (e) { /* abaikan */ }
+        } else if (res && res.offline) {
+          break;   // masih offline — coba lagi nanti, urutan operasi dijaga
+        } else {
+          // Ditolak server (mis. baris sudah dihapus di perangkat lain).
+          // Membiarkannya di antrean akan memblokir selamanya, jadi dibuang.
+          console.warn('Outbox item ditolak server, dibuang:', item, res && res.message);
+          try { await LocalDB.outboxRemove(item._outboxId); } catch (e) { /* abaikan */ }
+        }
       }
+    } finally {
+      this._flushing = false;
     }
   }
 };

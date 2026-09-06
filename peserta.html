@@ -1,29 +1,27 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#169AC4">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Bontang Akuatik">
-  <link rel="apple-touch-icon" href="assets/images/logo.webp">
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/images/logo.webp">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard Peserta - Bontang Akuatik</title>
   <meta name="description" content="Dashboard peserta Bontang Akuatik. Lihat jadwal latihan, lakukan absensi, dan akses rapor latihan Anda.">
   <meta name="robots" content="noindex, follow">
 
-  <link rel="icon" type="image/jpeg" href="assets/images/logo.webp">
-  <link rel="apple-touch-icon" href="assets/images/logo.webp">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#169AC4">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bontang Akuatik">
+  <link rel="icon" type="image/png" href="assets/images/logo.webp">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/images/logo.webp">
 
-  <link rel="stylesheet" href="assets/css/global.css">
-  <link rel="stylesheet" href="assets/css/navbar.css">
-  <link rel="stylesheet" href="assets/css/peserta.css">
-  <link rel="stylesheet" href="assets/css/pwa.css">
-  <link rel="stylesheet" href="assets/css/components.css">
-
+  <link rel="stylesheet" href="assets/css/global.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/navbar.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/peserta.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/pwa.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/components.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/components-v2.css?v=20260906k">
 </head>
 
 <body>
@@ -31,7 +29,7 @@
   <div class="dashboard">
     <div class="container">
 
-      <!-- Dashboard Header -->
+      <!-- Header -->
       <div class="dashboard-header">
         <div>
           <h1>Halo, <span id="user-nama">Peserta</span> 👋</h1>
@@ -39,45 +37,36 @@
         </div>
         <div class="dashboard-header-right">
           <button id="btn-rapor" class="btn btn-accent btn-sm">Rapor Saya</button>
-          <div class="kelas-badge">Kelas: <span id="user-kelas">-</span></div>
+          <div class="kelas-badge"><span id="user-kelas">-</span></div>
         </div>
       </div>
 
-      <!-- Pengingat jadwal yang perlu ditindaklanjuti (absen/izin) -->
-      <section class="reminder-section" id="upcoming-reminder-section" hidden aria-label="Jadwal yang perlu ditindaklanjuti">
+      <!-- Akses jadwal terkunci (pembayaran belum dikonfirmasi) -->
+      <section class="lock-panel" id="lock-panel" hidden aria-live="polite">
+        <div class="lock-panel__icon" aria-hidden="true">🔒</div>
+        <div class="lock-panel__body">
+          <h2 id="lock-title">Jadwal Latihan Terkunci</h2>
+          <p id="lock-message"></p>
+          <div class="lock-panel__meta" id="lock-meta"></div>
+        </div>
+        <div class="lock-panel__actions" id="lock-actions"></div>
+      </section>
+
+      <!-- Pengingat absensi -->
+      <section class="reminder-section" id="upcoming-reminder-section" hidden
+               aria-label="Jadwal yang perlu ditindaklanjuti">
         <div class="reminder-section-head">
           <h2 class="reminder-section-title">
             <span aria-hidden="true">🔔</span>
             <span>Ayo Absen Kehadiran</span>
             <span class="reminder-count-badge" id="reminder-count">0</span>
           </h2>
-          <p class="reminder-section-sub">Klik kartu untuk melakukan absensi atau izin</p>
+          <p class="reminder-section-sub">Ketuk kartu untuk melakukan absensi atau izin</p>
         </div>
         <div class="reminder-scroller" id="reminder-scroller"></div>
       </section>
 
-      <!-- Stats -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-label">Total Jadwal</div>
-          <div class="stat-value" id="stat-total">0</div>
-          <div class="stat-sub">Sesi pelatihan terjadwal</div>
-        </div>
-        <div class="stat-card success">
-          <div class="stat-label">Total Hadir</div>
-          <div class="stat-value" id="stat-hadir">0</div>
-          <div class="stat-sub">Sesi yang sudah dihadiri</div>
-        </div>
-        <div class="stat-card warning">
-          <div class="stat-label">Persentase Kehadiran</div>
-          <div class="stat-value" id="stat-persen">0%</div>
-          <div class="progress-bar">
-            <div class="progress-fill" id="progress-fill" style="width: 0%;"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Berita dari Admin (req #6) -->
+      <!-- Informasi dari admin -->
       <div class="dashboard-section" id="berita-section" hidden>
         <div class="section-head">
           <h2>Informasi Penting</h2>
@@ -87,7 +76,7 @@
       </div>
 
       <!-- Jadwal -->
-      <div class="dashboard-section">
+      <div class="dashboard-section" id="jadwal-section">
         <div class="section-head">
           <h2>Jadwal Pelatihan</h2>
           <div class="section-head-actions">
@@ -99,24 +88,24 @@
           </div>
         </div>
 
-        <!-- Toolbar Search & Filter (BARU) -->
         <div class="toolbar">
           <div class="toolbar-left">
             <input type="text" id="search-jadwal-peserta" class="search-input"
-                  placeholder="🔍 Cari tanggal / lokasi / pukul...">
-            <select id="filter-jadwal-peserta-status" class="filter-select">
-              <option value="">Semua Status Jadwal</option>
-              <option value="Aktif">Aktif</option>
-              <option value="Pending">Pending</option>
-              <option value="Cancel">Cancel</option>
+                   placeholder="🔍 Cari tanggal / lokasi / jam..." aria-label="Cari jadwal">
+            <select id="filter-jadwal-peserta-status" class="filter-select" aria-label="Filter status jadwal">
+              <option value="">Semua Status Sesi</option>
+              <option value="Aktif">Sedang Berlangsung</option>
+              <option value="Pending">Belum Dibuka</option>
+              <option value="Selesai">Selesai</option>
+              <option value="Cancel">Dibatalkan</option>
             </select>
-            <select id="filter-jadwal-peserta-kehadiran" class="filter-select">
+            <select id="filter-jadwal-peserta-kehadiran" class="filter-select" aria-label="Filter status kehadiran">
               <option value="">Semua Status Saya</option>
               <option value="hadir">Sudah Hadir</option>
               <option value="izin">Sudah Izin</option>
               <option value="belum">Belum Direspons</option>
             </select>
-            <select id="sort-jadwal-peserta" class="filter-select">
+            <select id="sort-jadwal-peserta" class="filter-select" aria-label="Urutkan jadwal">
               <option value="upcoming" selected>Mendatang Dulu</option>
               <option value="tanggal-desc">Terbaru</option>
               <option value="tanggal-asc">Terlama</option>
@@ -125,34 +114,68 @@
         </div>
 
         <div id="jadwal-list">
-          <div class="empty-state">
-            <div class="icon">⏳</div>
-            <p>Memuat jadwal...</p>
-          </div>
+          <div class="empty-state"><div class="icon">⏳</div><p>Memuat jadwal...</p></div>
+        </div>
+        <div id="jadwal-pager"></div>
+      </div>
+      <!-- Statistik -->
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Jadwal</div>
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-sub">Sesi pelatihan terjadwal</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-label">Total Hadir</div>
+          <div class="stat-value" id="stat-hadir">0</div>
+          <div class="stat-sub" id="stat-hadir-sub">Sesi yang sudah dihadiri</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-label">Persentase Kehadiran</div>
+          <div class="stat-value" id="stat-persen">0%</div>
+          <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%;"></div></div>
         </div>
       </div>
+
+      <!-- Riwayat & perpanjangan periode pelatihan -->
+      <div class="dashboard-section" id="enrollment-section">
+        <div class="section-head">
+          <h2>Periode Pelatihan Saya</h2>
+          <button type="button" class="btn btn-accent btn-sm" id="btn-perpanjang">Perpanjang / Bergabung Kembali</button>
+        </div>
+        <div class="enrollment-list" id="enrollment-list"></div>
+      </div>
+
 
     </div>
   </div>
 
-  <!-- Libraries untuk PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.0/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.0/jspdf.plugin.autotable.min.js" defer></script>
 
-  <script src="assets/js/config.js"></script>
+  <script src="assets/js/config.js?v=20260906k"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="assets/js/supabase-client.js"></script>
-  <script src="assets/js/utils.js"></script>
-  <script src="assets/js/auth.js"></script>
-  <script src="assets/js/db.js"></script>
-  <script src="assets/js/crud-api.js"></script>
-  <script src="assets/js/sync.js"></script>
-  <script src="assets/js/schedule.js"></script>
-  <script src="assets/js/business-logic.js"></script>
-  <script src="assets/js/components/ui.js"></script>
-  <script src="assets/js/peserta-settings.js"></script>
-  <script src="assets/js/pdf-rapor.js"></script>
-  <script src="assets/js/peserta.js"></script>
-  <script src="assets/js/pwa.js"></script>
+  <script src="assets/js/supabase-client.js?v=20260906k"></script>
+  <script src="assets/js/lib/wita.js?v=20260906k"></script>
+  <script src="assets/js/lib/password.js?v=20260906k"></script>
+  <script src="assets/js/lib/wa.js?v=20260906k"></script>
+  <script src="assets/js/lib/numbering.js?v=20260906k"></script>
+  <script src="assets/js/lib/schedule-engine.js?v=20260906k"></script>
+  <script src="assets/js/lib/paginator.js?v=20260906k"></script>
+  <script src="assets/js/db.js?v=20260906k"></script>
+  <script src="assets/js/crud-api.js?v=20260906k"></script>
+  <script src="assets/js/sync.js?v=20260906k"></script>
+  <script src="assets/js/domain/base.js?v=20260906k"></script>
+  <script src="assets/js/domain/people.js?v=20260906k"></script>
+  <script src="assets/js/domain/training.js?v=20260906k"></script>
+  <script src="assets/js/domain/content.js?v=20260906k"></script>
+  <script src="assets/js/auth.js?v=20260906k"></script>
+  <script src="assets/js/utils.js?v=20260906k"></script>
+  <script src="assets/js/components/ui.js?v=20260906k"></script>
+  <script src="assets/js/peserta-settings.js?v=20260906k"></script>
+  <script src="assets/js/pdf-rapor.js?v=20260906k"></script>
+  <script src="assets/js/peserta.js?v=20260906k"></script>
+  <script src="assets/js/lib/help-widget.js?v=20260906k"></script>
+  <script src="assets/js/pwa.js?v=20260906k"></script>
 </body>
 </html>

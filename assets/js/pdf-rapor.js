@@ -1,59 +1,75 @@
 /* ============================================================
-   PDF RAPOR GENERATOR — v4
-   jsPDF + jsPDF-AutoTable (load via CDN di HTML)
+   PDF RAPOR — jsPDF + jsPDF-AutoTable (dimuat via CDN di HTML)
 
-   Format 5 kolom: No | GAYA RENANG | 25m (Dengan Pelampung)
-                   | 25m (Tanpa Pelampung) | 50m
-   + Stempel & tanda tangan (assets/rapor/stemple.png) di-overlay
-     "di depan teks" pada area antara nama klub dan nama pelatih.
-   + Periode pengambilan waktu mengikuti semester (Jan–Jun / Jul–Des).
-   + Nomor peserta tampil di antara Nama dan Jenis Kelamin.
+   Format tabel 5 kolom:
+     No | Gaya Renang | 25 m (dengan pelampung) | 25 m (tanpa) | 50 m
+
+   Penanda tangan rapor SELALU identitas KOORDINATOR klub, bukan pelatih
+   yang memberi nilai. Nama & jabatan diambil dari pengaturan sistem
+   (lihat BizLogic.getRaporSigner) sehingga berganti otomatis bila
+   koordinator berubah, tanpa menyentuh kode.
    ============================================================ */
 const PDFRapor = {
 
   _imgCache: {},
 
-  async loadImageAsDataURL(path) {
-    if (this._imgCache[path]) return this._imgCache[path];
+  /**
+   * Muat gambar dan kecilkan ke resolusi secukupnya sebelum ditanam ke PDF.
+   *
+   * Logo & stempel aslinya beresolusi tinggi (ratusan KB). Menanamkannya
+   * apa adanya membuat SATU rapor berukuran megabyte — dan arsip ZIP berisi
+   * puluhan rapor menjadi ratusan megabyte, terlalu berat untuk diunduh
+   * lewat ponsel. Dibatasi di sini pada resolusi yang masih jauh di atas
+   * kebutuhan cetak (gambar hanya berukuran 22-40 mm di kertas).
+   *
+   * Nilai yang dipakai (logo 200 px untuk cetak 22 mm, stempel 340 px untuk
+   * 40 mm) setara ~220 DPI — tajam untuk dicetak, dan menekan ukuran satu
+   * rapor dari 2,4 MB menjadi sekitar 0,5 MB.
+   *
+   * @param {string} path
+   * @param {number} maxPx sisi terpanjang maksimum setelah diperkecil
+   */
+  async loadImageAsDataURL(path, maxPx) {
+    const batas = maxPx || 420;
+    const key = path + '@' + batas;
+    if (this._imgCache[key]) return this._imgCache[key];
+
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
         try {
+          const skala = Math.min(1, batas / Math.max(img.naturalWidth, img.naturalHeight));
+          const w = Math.max(1, Math.round(img.naturalWidth * skala));
+          const h = Math.max(1, Math.round(img.naturalHeight * skala));
+
           const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
+          canvas.width = w;
+          canvas.height = h;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
-          const result = { dataURL: canvas.toDataURL('image/png'), width: img.naturalWidth, height: img.naturalHeight };
-          this._imgCache[path] = result;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, w, h);
+
+          const result = { dataURL: canvas.toDataURL('image/png'), width: w, height: h };
+          this._imgCache[key] = result;
           resolve(result);
         } catch (err) { reject(err); }
       };
-      img.onerror = () => reject(new Error('Gagal load gambar: ' + path));
+      img.onerror = () => reject(new Error('Gagal memuat gambar: ' + path));
       img.src = path;
     });
   },
 
-  /** Format waktu dari DB → "01.08.12" atau "-" */
   fmtWaktu(v) {
-    if (!v || String(v).trim() === '' || String(v).trim() === '-') return '-';
-    return String(v).trim();
+    const s = String(v == null ? '' : v).trim();
+    return (!s || s === '-') ? '-' : s;
   },
 
   fmtTTL(tempat, tanggal) {
     const t = tempat || '-';
-    if (!tanggal) return t;
-    return t + ', ' + Utils.formatDate(tanggal);
+    return tanggal ? t + ', ' + WITA.formatDate(tanggal) : t;
   },
 
-  fmtTanggalID(d) {
-    if (!d) return '-';
-    return Utils.formatDateLong(d);
-  },
-
-  currentYear() { return new Date().getFullYear(); },
-
-  /** Kop surat — return Y cursor setelah header. */
+  /** Kop surat; mengembalikan posisi Y setelah header. */
   async drawHeader(doc, pageWidth, marginX) {
     const headerTopY = 10;
     const logoSize = 22;
@@ -61,18 +77,15 @@ const PDFRapor = {
     const logoRightX = pageWidth - marginX - logoSize;
 
     let logoKiri = null, logoKanan = null;
-    try { logoKiri = await this.loadImageAsDataURL('assets/images/akuatik.png'); } catch (e) { console.warn(e.message); }
-    try { logoKanan = await this.loadImageAsDataURL('assets/images/logo.png'); } catch (e) { console.warn(e.message); }
+    try { logoKiri = await this.loadImageAsDataURL('assets/images/akuatik.png', 200); } catch (e) { /* opsional */ }
+    try { logoKanan = await this.loadImageAsDataURL('assets/images/logo.png', 200); } catch (e) { /* opsional */ }
 
     const drawLogo = (img, x) => {
       if (!img) return;
       const ratio = img.width / img.height;
       let w = logoSize, h = logoSize;
-      if (ratio > 1) { h = logoSize / ratio; } else { w = logoSize * ratio; }
-      const dx = x + (logoSize - w) / 2;
-      const dy = headerTopY + (logoSize - h) / 2;
-      const format = img.dataURL.includes('image/jpeg') ? 'JPEG' : 'PNG';
-      doc.addImage(img.dataURL, format, dx, dy, w, h);
+      if (ratio > 1) h = logoSize / ratio; else w = logoSize * ratio;
+      doc.addImage(img.dataURL, 'PNG', x + (logoSize - w) / 2, headerTopY + (logoSize - h) / 2, w, h);
     };
     drawLogo(logoKiri, logoLeftX);
     drawLogo(logoKanan, logoRightX);
@@ -80,26 +93,25 @@ const PDFRapor = {
     const textPadding = 4;
     const textLeftX = logoLeftX + logoSize + textPadding;
     const textRightX = logoRightX - textPadding;
-    const textCenterX = (textLeftX + textRightX) / 2;
+    const centerX = (textLeftX + textRightX) / 2;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
-    doc.text('BONTANG AKUATIK SWIMMING CLUB', textCenterX, headerTopY + 6, { align: 'center' });
+    doc.text('BONTANG AKUATIK SWIMMING CLUB', centerX, headerTopY + 6, { align: 'center' });
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9.5);
     doc.text('Gg. Selancar 7C, No. 7, RT 28, Kel. Api-Api, Kec. Bontang Utara, Kota Bontang',
-      textCenterX, headerTopY + 12, { align: 'center' });
+      centerX, headerTopY + 12, { align: 'center' });
 
-    const email = 'bontangakuatikswimmingclub@gmail.com';
+    const email = CONFIG.CONTACT.email;
     const sep = '  |  ';
-    const phone = '+62816679671';
-    doc.setFontSize(9.5);
+    const phone = '+' + CONFIG.CONTACT.whatsapp;
     const emailW = doc.getTextWidth(email);
     const sepW = doc.getTextWidth(sep);
     const lineY = headerTopY + 18;
-    let drawX = textCenterX - (emailW + sepW + doc.getTextWidth(phone)) / 2;
+    let drawX = centerX - (emailW + sepW + doc.getTextWidth(phone)) / 2;
 
     doc.setTextColor(30, 90, 200);
     doc.text(email, drawX, lineY);
@@ -109,8 +121,7 @@ const PDFRapor = {
     drawX += emailW;
     doc.setTextColor(0, 0, 0);
     doc.text(sep, drawX, lineY);
-    drawX += sepW;
-    doc.text(phone, drawX, lineY);
+    doc.text(phone, drawX + sepW, lineY);
 
     const dividerY = headerTopY + logoSize + 2;
     doc.setDrawColor(0, 0, 0);
@@ -120,88 +131,90 @@ const PDFRapor = {
   },
 
   /**
-   * Generate PDF rapor.
-   * @param {Object} peserta - data lengkap peserta (getDataLengkapPeserta)
-   * @param {Object} rapor   - data rapor (getRaporPeserta)
-   * @param {String} namaPelatih - opsional override nama pelatih
+   * Bangun PDF rapor.
+   * @param {object} peserta data lengkap peserta (getDataLengkapPeserta)
+   * @param {object} rapor   data rapor (getRaporPeserta)
+   * @param {object} opts    { output: 'save' | 'blob' } — 'blob' dipakai
+   *                         saat membangun arsip ZIP banyak rapor.
+   * @returns {Promise<Blob|undefined>}
    */
-  async generate(peserta, rapor, namaPelatih) {
+  async generate(peserta, rapor, opts) {
+    const options = opts || {};
     if (typeof window.jspdf === 'undefined') {
-      Utils.notify('Library PDF belum termuat. Mohon refresh halaman.', 'error');
-      return;
+      throw new Error('Library PDF belum termuat. Mohon muat ulang halaman.');
     }
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const marginX = 20;
 
-    // ============ KOP SURAT ============
     let cursorY = await this.drawHeader(doc, pageWidth, marginX);
 
-    // ============ JUDUL ============
+    /* ---------------- Judul ---------------- */
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
     doc.text('LAPORAN HASIL LATIHAN RENANG', pageWidth / 2, cursorY + 4, { align: 'center' });
     cursorY += 10;
 
-    // ============ IDENTITAS (Nomor Peserta antara Nama & Jenis Kelamin) ============
-    const identitas = [
-      ['Nama', ':', (peserta.Nama_Lengkap || '-').toUpperCase()],
-      ['Nomor Peserta', ':', peserta.Nomor_Peserta ? String(peserta.Nomor_Peserta) : '-'],
-      ['Jenis Kelamin', ':', peserta.Jenis_Kelamin || '-'],
-      ['Tempat, Tanggal Lahir', ':', this.fmtTTL(peserta.Tempat_Lahir, peserta.Tanggal_Lahir)],
-      ['Kelompok Umur', ':', peserta.Kelompok_Umur || '-'],
-      ['NISN', ':', peserta.NISNAS || '-'],
-      ['Asal Sekolah', ':', peserta.Asal_Sekolah || '-'],
-      ['Kelas, (Wali Kelas)', ':', (peserta.Kelas_Sekolah || '-') + ' (' + (peserta.Wali_Kelas || '-') + ')']
-    ];
+    /* ---------------- Identitas ---------------- */
     doc.autoTable({
       startY: cursorY,
-      body: identitas,
+      body: [
+        ['Nama', ':', (peserta.Nama_Lengkap || '-').toUpperCase()],
+        ['Nomor Peserta', ':', peserta.Nomor_Peserta ? String(peserta.Nomor_Peserta) : '-'],
+        ['Jenis Kelamin', ':', peserta.Jenis_Kelamin || '-'],
+        ['Tempat, Tanggal Lahir', ':', this.fmtTTL(peserta.Tempat_Lahir, peserta.Tanggal_Lahir)],
+        ['Kelompok Umur', ':', peserta.Kelompok_Umur || '-'],
+        ['NISNAS', ':', peserta.NISNAS || '-'],
+        ['Asal Sekolah', ':', peserta.Asal_Sekolah || '-'],
+        ['Kelas, (Wali Kelas)', ':', (peserta.Kelas_Sekolah || '-') + ' (' + (peserta.Wali_Kelas || '-') + ')']
+      ],
       theme: 'plain',
       styles: { font: 'helvetica', fontSize: 11, cellPadding: { top: 1, bottom: 1, left: 0, right: 2 }, textColor: [0, 0, 0] },
-      columnStyles: { 0: { cellWidth: 50, fontStyle: 'normal' }, 1: { cellWidth: 5, halign: 'center' }, 2: { cellWidth: 'auto', fontStyle: 'normal' } },
+      columnStyles: { 0: { cellWidth: 50 }, 1: { cellWidth: 5, halign: 'center' }, 2: { cellWidth: 'auto' } },
       margin: { left: marginX, right: marginX }
     });
     cursorY = doc.lastAutoTable.finalY + 8;
 
-    // ============ SUBJUDUL ============
+    /* ---------------- Capaian ---------------- */
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.text('CAPAIAN HASIL LATIHAN RENANG', pageWidth / 2, cursorY, { align: 'center' });
     cursorY += 7;
 
-    // ============ PERIODE (semester) ============
-    const periode = (typeof getSemesterPeriode === 'function')
-      ? getSemesterPeriode(peserta.Tanggal_Mulai)
-      : { start: peserta.Tanggal_Mulai, end: peserta.Tanggal_Akhir };
+    const periode = getSemesterPeriode(peserta.Tanggal_Mulai);
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(11);
-    doc.text('Periode pengambilan waktu : ' + this.fmtTanggalID(periode.start) + ' s.d ' + this.fmtTanggalID(periode.end), marginX, cursorY);
+    doc.text('Periode pengambilan waktu : ' + WITA.formatDateLong(periode.start) +
+             ' s.d ' + WITA.formatDateLong(periode.end), marginX, cursorY);
     cursorY += 5;
 
-    // ============ TABEL RAPOR — 5 KOLOM ============
     const r = rapor || {};
-    const tabelRapor = [
-      ['1', 'GAYA BEBAS',    this.fmtWaktu(r.Waktu_25_Bebas_Pelampung),    this.fmtWaktu(r.Waktu_25_Bebas),    this.fmtWaktu(r.Waktu_50_Bebas)],
-      ['2', 'GAYA DADA',     this.fmtWaktu(r.Waktu_25_Dada_Pelampung),     this.fmtWaktu(r.Waktu_25_Dada),     this.fmtWaktu(r.Waktu_50_Dada)],
-      ['3', 'GAYA KUPU',     this.fmtWaktu(r.Waktu_25_Kupu_Pelampung),     this.fmtWaktu(r.Waktu_25_Kupu),     this.fmtWaktu(r.Waktu_50_Kupu)],
-      ['4', 'GAYA PUNGGUNG', this.fmtWaktu(r.Waktu_25_Punggung_Pelampung), this.fmtWaktu(r.Waktu_25_Punggung), this.fmtWaktu(r.Waktu_50_Punggung)]
-    ];
+    const body = CONFIG.GAYA_RENANG.map((g, i) => [
+      String(i + 1),
+      g.label.toUpperCase(),
+      this.fmtWaktu(r['Waktu_25_' + g.key + '_Pelampung']),
+      this.fmtWaktu(r['Waktu_25_' + g.key]),
+      this.fmtWaktu(r['Waktu_50_' + g.key])
+    ]);
+
     doc.autoTable({
       startY: cursorY,
       head: [['NO.', 'GAYA RENANG', '25 METER\n(Dengan Pelampung)', '25 METER\n(Tanpa Pelampung)', '50 METER']],
-      body: tabelRapor,
+      body,
       theme: 'grid',
-      styles: { font: 'helvetica', fontSize: 10, halign: 'center', valign: 'middle', lineColor: [0, 0, 0], lineWidth: 0.3, textColor: [0, 0, 0], cellPadding: 2.5 },
+      styles: {
+        font: 'helvetica', fontSize: 10, halign: 'center', valign: 'middle',
+        lineColor: [0, 0, 0], lineWidth: 0.3, textColor: [0, 0, 0], cellPadding: 2.5
+      },
       headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', fontSize: 9 },
       columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 40, halign: 'left' }, 2: { cellWidth: 39 }, 3: { cellWidth: 39 }, 4: { cellWidth: 40 } },
       margin: { left: marginX, right: marginX }
     });
     cursorY = doc.lastAutoTable.finalY + 8;
 
-    // ============ PREDIKAT ============
+    /* ---------------- Predikat & deskripsi ---------------- */
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
     doc.text('1) PREDIKAT', marginX, cursorY + 5);
@@ -209,76 +222,71 @@ const PDFRapor = {
     doc.text(r.Predikat || '-', marginX + 32, cursorY + 5);
     cursorY += 13;
 
-    // ============ DESKRIPSI ============
     doc.text('2) DESKRIPSI', marginX, cursorY + 5);
     const deskBoxX = marginX + 30;
     const deskBoxW = pageWidth - marginX * 2 - 30;
     const deskBoxH = 18;
     doc.rect(deskBoxX, cursorY, deskBoxW, deskBoxH);
-    const splitText = doc.splitTextToSize(r.Catatan || '-', deskBoxW - 4);
-    doc.text(splitText, deskBoxX + 2, cursorY + 5);
+    doc.text(doc.splitTextToSize(r.Catatan || '-', deskBoxW - 4), deskBoxX + 2, cursorY + 5);
     cursorY += deskBoxH + 12;
 
-    // ============ FOOTER: tanggal + klub + STEMPEL + nama pelatih ============
-    const footerCenterX = pageWidth - marginX - 30; // pusat blok tanda tangan (kanan)
+    /* ---------------- Tanda tangan koordinator ---------------- */
+    const signer = (typeof BizLogic !== 'undefined' && BizLogic.getRaporSigner)
+      ? BizLogic.getRaporSigner()
+      : { nama: 'Muhtar Efendi', jabatan: 'Koordinator Pelatih' };
+
+    const footerCenterX = pageWidth - marginX - 30;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
-    doc.text('Bontang, ' + this.fmtTanggalID(new Date()), footerCenterX, cursorY, { align: 'center' });
+    doc.text('Bontang, ' + WITA.formatDateLong(WITA.todayISO()), footerCenterX, cursorY, { align: 'center' });
     cursorY += 5;
 
-    // Baris nama klub
     doc.setFont('helvetica', 'bold');
     const clubY = cursorY;
     doc.text('BONTANG AKUATIK SWIMMING CLUB', footerCenterX, clubY, { align: 'center' });
 
-    // Baris nama pelatih (di bawah, beri ruang untuk stempel di tengah)
-    // const pelatih = (namaPelatih || r.Nama_Pelatih || 'Muhtar Efendi').toUpperCase();
-    const pelatih = ('Muhtar Efendi').toUpperCase();
-    const gap = 24; // ruang kosong untuk stempel & tanda tangan
-    const pelatihY = clubY + gap;
+    const namaSigner = String(signer.nama || '').toUpperCase();
+    const gap = 24;                       // ruang untuk stempel & tanda tangan
+    const signerY = clubY + gap;
     doc.setFont('helvetica', 'bold');
-    doc.text(pelatih, footerCenterX, pelatihY, { align: 'center' });
-    const textWidth = doc.getTextWidth(pelatih);
+    doc.text(namaSigner, footerCenterX, signerY, { align: 'center' });
+    const textWidth = doc.getTextWidth(namaSigner);
     doc.setLineWidth(0.3);
-    doc.line(footerCenterX - textWidth / 2, pelatihY + 1, footerCenterX + textWidth / 2, pelatihY + 1);
+    doc.line(footerCenterX - textWidth / 2, signerY + 1, footerCenterX + textWidth / 2, signerY + 1);
     doc.setFont('helvetica', 'normal');
-    doc.text('Koordinator Pelatih', footerCenterX, pelatihY + 5, { align: 'center' });
+    doc.text(signer.jabatan || 'Koordinator Pelatih', footerCenterX, signerY + 5, { align: 'center' });
 
-    // STEMPEL — di-overlay TERAKHIR (di depan teks), di area tengah antara klub & pelatih
+    // Stempel digambar TERAKHIR agar berada di depan teks.
     try {
-      const stemp = await this.loadImageAsDataURL('assets/rapor/stemple.png');
+      const stemp = await this.loadImageAsDataURL('assets/rapor/stemple.png', 340);
       const stampW = 40;
       const stampH = stampW * (stemp.height / stemp.width);
-      const stampX = footerCenterX - stampW / 2;
-      const stampY = clubY + 2; // mulai tepat di bawah teks klub, mengisi gap menuju nama pelatih
-      doc.addImage(stemp.dataURL, 'PNG', stampX, stampY, stampW, stampH);
-    } catch (e) {
-      console.warn('Stempel tidak termuat:', e.message);
-    }
+      doc.addImage(stemp.dataURL, 'PNG', footerCenterX - stampW / 2, clubY + 2, stampW, stampH);
+    } catch (e) { /* stempel opsional */ }
 
-    cursorY = pelatihY + 14;
+    cursorY = signerY + 14;
 
-    // ============ CATATAN KELOMPOK UMUR (kiri) ============
+    /* ---------------- Catatan kelompok umur ---------------- */
     const noteX = marginX;
     const noteY = cursorY - 20;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.text('Catatan Kelompok Umur :', noteX, noteY);
-    const kelompokList = [
-      ['Senior', '> 19 tahun'], ['Group 1', '16-18 tahun'], ['Group 2', '14-15 tahun'],
-      ['Group 3', '12-13 tahun'], ['Group 4', '10-11 tahun'], ['Group 5', '8-9 tahun'], ['Group 6', '< 7 tahun']
-    ];
     let ly = noteY + 6;
-    kelompokList.forEach((item, index) => {
-      doc.text((index + 1) + ')', noteX + 2, ly);
-      doc.text(item[0] + ' : ' + item[1], noteX + 10, ly);
+    Object.entries(CONFIG.KELOMPOK_UMUR_INFO).forEach(([nama, rentang], i) => {
+      doc.text((i + 1) + ')', noteX + 2, ly);
+      doc.text(nama + ' : ' + rentang, noteX + 10, ly);
       ly += 5;
     });
     doc.rect(noteX, noteY + 2, 70, 40);
 
-    // ============ SAVE (setelah semua digambar) ============
-    const filename = 'Rapor_' + (peserta.Nama_Lengkap || 'Peserta').replace(/\s+/g, '_') + '_' + Utils.formatDateInput(new Date()) + '.pdf';
+    /* ---------------- Keluaran ---------------- */
+    if (options.output === 'blob') return doc.output('blob');
+
+    const filename = 'Rapor_' + String(peserta.Nama_Lengkap || 'Peserta').replace(/\s+/g, '_') +
+                     '_' + WITA.todayISO() + '.pdf';
     doc.save(filename);
-    Utils.notify('Rapor PDF berhasil diunduh', 'success');
+    if (typeof UI !== 'undefined') UI.toast('Rapor PDF berhasil diunduh', 'success');
+    return undefined;
   }
 };

@@ -1,43 +1,34 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Admin - Bontang Akuatik</title>
+  <meta name="robots" content="noindex, nofollow">
+
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#169AC4">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Bontang Akuatik">
-  <link rel="apple-touch-icon" href="assets/images/logo.webp">
+  <link rel="icon" type="image/png" href="assets/images/logo.webp">
   <link rel="apple-touch-icon" sizes="180x180" href="assets/images/logo.webp">
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel - Bontang Akuatik</title>
-  <meta name="robots" content="noindex, nofollow">
 
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#169AC4">
-
-  <link rel="icon" type="image/jpeg" href="assets/images/logo.webp">
-  <link rel="apple-touch-icon" href="assets/images/logo.webp">
-
-  <link rel="stylesheet" href="assets/css/global.css">
-  <link rel="stylesheet" href="assets/css/navbar.css">
-  <link rel="stylesheet" href="assets/css/admin.css">
-  <link rel="stylesheet" href="assets/css/pwa.css">
-  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/global.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/navbar.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/admin.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/pwa.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/components.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/components-v2.css?v=20260906k">
 </head>
-<body>
+<body class="has-bottom-nav">
 
-  <!-- SVG Sprite (Cupertino-style icons, defined once, reused via <use>) -->
+  <!-- Sprite ikon, didefinisikan sekali lalu dipakai ulang lewat <use> -->
   <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true" focusable="false">
     <defs>
       <symbol id="ic-person" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-      </symbol>
-      <symbol id="ic-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/>
       </symbol>
       <symbol id="ic-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2.5"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
@@ -45,11 +36,14 @@
       <symbol id="ic-check-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
       </symbol>
+      <symbol id="ic-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+      </symbol>
       <symbol id="ic-news" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14H10M15 18H10M10 6h8v4h-8V6z"/>
       </symbol>
-      <symbol id="ic-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+      <symbol id="ic-whistle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 3a4 4 0 0 1 0 8h-6l-4.5 4.5a3.5 3.5 0 1 1-2-6.4"/><circle cx="17" cy="7" r="1.2"/>
       </symbol>
       <symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="7.5"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -60,32 +54,11 @@
       <symbol id="ic-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
       </symbol>
-      <symbol id="ic-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-      </symbol>
-      <symbol id="ic-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
-      </symbol>
-      <symbol id="ic-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-      </symbol>
-      <symbol id="ic-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-      </symbol>
-      <symbol id="ic-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-      </symbol>
       <symbol id="ic-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="6 9 12 15 18 9"/>
       </symbol>
       <symbol id="ic-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-      </symbol>
-      <symbol id="ic-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-      </symbol>
-      <symbol id="ic-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
       </symbol>
     </defs>
   </svg>
@@ -93,97 +66,55 @@
   <div class="admin-page">
     <div class="container">
 
-      <!-- <div class="admin-header">
-        <div class="admin-header-content">
-          <h1>Admin Panel</h1>
-          <p>Kelola data <span>peserta, jadwal, kehadiran, rapor</span> dan berita</p>
-        </div>
-      </div> -->
-
-      <!-- Stats -->
-      <div class="admin-stats">
-        <div class="admin-stat" data-tone="blue">
-          <!-- <div class="icon-bg blue"><svg class="ic" aria-hidden="true"><use href="#ic-person"/></svg></div> -->
-          <div class="stat-info">
-            <div class="stat-label">Total Peserta</div>
-            <div class="stat-value" id="stat-peserta">0</div>
-          </div>
-        </div>
-        <div class="admin-stat" data-tone="orange">
-          <!-- <div class="icon-bg orange"><svg class="ic" aria-hidden="true"><use href="#ic-wallet"/></svg></div> -->
-          <div class="stat-info">
-            <div class="stat-label">Pembayaran Pending</div>
-            <div class="stat-value" id="stat-pending">0</div>
-          </div>
-        </div>
-        <div class="admin-stat" data-tone="purple">
-          <!-- <div class="icon-bg purple"><svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg></div> -->
-          <div class="stat-info">
-            <div class="stat-label">Total Jadwal</div>
-            <div class="stat-value" id="stat-jadwal">0</div>
-          </div>
-        </div>
-        <div class="admin-stat" data-tone="green">
-          <!-- <div class="icon-bg green"><svg class="ic" aria-hidden="true"><use href="#ic-check-circle"/></svg></div> -->
-          <div class="stat-info">
-            <div class="stat-label">Total Kehadiran</div>
-            <div class="stat-value" id="stat-kehadiran">0</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ============== SECTION TASK (req #14) — tampil hanya bila ada tugas ============== -->
+      <!-- Tugas yang perlu ditindaklanjuti -->
       <section class="task-section" id="task-section" hidden aria-label="Tugas yang perlu ditindaklanjuti">
         <div class="task-section-head">
           <h2 class="task-section-title">
             <svg class="ic" aria-hidden="true"><use href="#ic-info"/></svg>
-            <span>Tugas Penting Admin</span>
+            <span id="task-title">Tugas Penting</span>
             <span class="task-count-badge" id="task-count">0</span>
           </h2>
-          <p class="task-section-sub">Klik untuk menindaklanjuti tugas tersebut</p>
+          <p class="task-section-sub">Ketuk kartu untuk menindaklanjuti</p>
         </div>
         <div class="task-scroller" id="task-scroller"></div>
       </section>
 
-      <!-- Tabs -->
-      <div class="tabs" role="tablist" aria-label="Admin sections">
-        <button class="tab active" role="tab" aria-selected="true" data-tab="peserta">
-          <svg class="ic" aria-hidden="true"><use href="#ic-person"/></svg>
-          <span>Peserta</span>
+      <!-- Navigasi tab (desktop) -->
+      <div class="tabs" id="admin-tabs" role="tablist" aria-label="Bagian panel admin">
+        <button class="tab active" role="tab" aria-selected="true" data-tab="peserta" data-icon="ic-person">
+          <svg class="ic" aria-hidden="true"><use href="#ic-person"/></svg><span>Peserta</span>
         </button>
-        <button class="tab" role="tab" aria-selected="false" data-tab="jadwal">
-          <svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg>
-          <span>Jadwal</span>
+        <button class="tab" role="tab" aria-selected="false" data-tab="jadwal" data-icon="ic-calendar">
+          <svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg><span>Jadwal</span>
         </button>
-        <button class="tab" role="tab" aria-selected="false" data-tab="berita">
-          <svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg>
-          <span>Berita</span>
+        <button class="tab" role="tab" aria-selected="false" data-tab="kehadiran" data-icon="ic-check-circle">
+          <svg class="ic" aria-hidden="true"><use href="#ic-check-circle"/></svg><span>Kehadiran</span>
         </button>
-        <button class="tab" role="tab" aria-selected="false" data-tab="kehadiran">
-          <svg class="ic" aria-hidden="true"><use href="#ic-check-circle"/></svg>
-          <span>Kehadiran</span>
+        <button class="tab" role="tab" aria-selected="false" data-tab="rapor" data-icon="ic-doc">
+          <svg class="ic" aria-hidden="true"><use href="#ic-doc"/></svg><span>Rapor</span>
         </button>
-        <button class="tab" role="tab" aria-selected="false" data-tab="rapor">
-          <svg class="ic" aria-hidden="true"><use href="#ic-doc"/></svg>
-          <span>Rapor</span>
+        <button class="tab" role="tab" aria-selected="false" data-tab="berita" data-icon="ic-news">
+          <svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg><span>Berita</span>
         </button>
-        <button class="tab" role="tab" aria-selected="false" data-tab="pengaturan">
-          <svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg>
-          <span>Pengaturan</span>
+        <button class="tab" role="tab" aria-selected="false" data-tab="pelatih" data-icon="ic-whistle" data-role="superadmin" hidden>
+          <svg class="ic" aria-hidden="true"><use href="#ic-whistle"/></svg><span>Pelatih</span>
         </button>
       </div>
 
-      <!-- ============== TAB PESERTA ============== -->
+      <!-- ============== PESERTA ============== -->
       <div class="tab-content active" id="tab-peserta" role="tabpanel">
+        <div class="notice-strip" id="nomor-notice" hidden></div>
+
         <div class="toolbar">
           <div class="toolbar-left">
             <div class="search-wrap">
               <svg class="ic search-ic" aria-hidden="true"><use href="#ic-search"/></svg>
-              <input type="text" id="search-peserta" class="search-input" placeholder="Cari nama, username, WhatsApp..." aria-label="Cari peserta">
+              <input type="text" id="search-peserta" class="search-input"
+                     placeholder="Cari nama, username, nomor peserta..." aria-label="Cari peserta">
             </div>
             <div class="select-wrap">
-              <select id="filter-kelas-peserta" class="filter-select" aria-label="Filter kelas">
-                <option value="all">Semua Kelas</option>
+              <select id="filter-kelas-peserta" class="filter-select" aria-label="Filter grup">
+                <option value="all">Semua Grup</option>
                 <option value="Grup A">Grup A</option>
                 <option value="Grup B">Grup B</option>
                 <option value="Grup C">Grup C</option>
@@ -195,32 +126,40 @@
                 <option value="all">Semua Status</option>
                 <option value="paid">Lunas</option>
                 <option value="unpaid">Belum Lunas</option>
+                <option value="pending">Menunggu Konfirmasi</option>
+                <option value="expired">Periode Berakhir</option>
               </select>
               <svg class="ic select-caret" aria-hidden="true"><use href="#ic-chevron-down"/></svg>
             </div>
           </div>
         </div>
+
+        <p class="table-hint" id="peserta-hint"></p>
+
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Nama</th><th>Usia</th><th>Gender</th><th>Kelas</th><th>Pembayaran</th><th>Persentase</th><th class="th-actions">Aksi</th></tr>
+              <tr><th>Nama</th><th>Usia</th><th>Grup</th>
+                  <th>Pembayaran</th><th class="th-actions">Aksi</th></tr>
             </thead>
             <tbody id="tbody-peserta"></tbody>
           </table>
         </div>
+        <div id="pager-peserta"></div>
       </div>
 
-      <!-- ============== TAB JADWAL ============== -->
+      <!-- ============== JADWAL ============== -->
       <div class="tab-content" id="tab-jadwal" role="tabpanel">
         <div class="toolbar">
           <div class="toolbar-left">
             <div class="search-wrap">
               <svg class="ic search-ic" aria-hidden="true"><use href="#ic-search"/></svg>
-              <input type="text" id="search-jadwal" class="search-input" placeholder="Cari jadwal..." aria-label="Cari jadwal">
+              <input type="text" id="search-jadwal" class="search-input"
+                     placeholder="Cari tanggal, lokasi, pelatih..." aria-label="Cari jadwal">
             </div>
             <div class="select-wrap">
-              <select id="filter-kelas-jadwal" class="filter-select" aria-label="Filter kelas">
-                <option value="all">Semua Kelas</option>
+              <select id="filter-kelas-jadwal" class="filter-select" aria-label="Filter grup">
+                <option value="all">Semua Grup</option>
                 <option value="Grup A">Grup A</option>
                 <option value="Grup B">Grup B</option>
                 <option value="Grup C">Grup C</option>
@@ -228,82 +167,59 @@
               <svg class="ic select-caret" aria-hidden="true"><use href="#ic-chevron-down"/></svg>
             </div>
             <div class="select-wrap">
-              <select id="filter-status-jadwal" class="filter-select" aria-label="Filter status jadwal">
+              <select id="filter-status-jadwal" class="filter-select" aria-label="Filter status sesi">
                 <option value="all">Semua Status</option>
-                <option value="Aktif">Aktif</option>
-                <option value="Pending">Pending</option>
-                <option value="Cancel">Cancel</option>
+                <option value="Aktif">Berlangsung</option>
+                <option value="Pending">Belum Dibuka</option>
+                <option value="Selesai">Selesai</option>
+                <option value="Cancel">Dibatalkan</option>
               </select>
               <svg class="ic select-caret" aria-hidden="true"><use href="#ic-chevron-down"/></svg>
             </div>
             <div class="select-wrap">
-              <select id="filter-tipe-jadwal" class="filter-select" aria-label="Filter tipe jadwal">
-                <option value="all">Semua Tipe</option>
-                <option value="kelas">Jadwal Kelas</option>
+              <select id="filter-tipe-jadwal" class="filter-select" aria-label="Filter jenis jadwal">
+                <option value="all">Semua Jenis</option>
+                <option value="kelas">Jadwal Grup</option>
                 <option value="personal">Personal</option>
+                <option value="mine">Delegasi Saya</option>
               </select>
               <svg class="ic select-caret" aria-hidden="true"><use href="#ic-chevron-down"/></svg>
             </div>
+            <div class="ui-segment ui-segment--sm" id="jadwal-view-toggle" role="group" aria-label="Tampilan jadwal">
+              <button type="button" data-val="list" class="active">☰ List</button>
+              <button type="button" data-val="calendar">📅 Kalender</button>
+            </div>
           </div>
-          <button class="btn btn-primary btn-icon" onclick="openJadwalModal()">
-            <svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg>
-            <span>Tambah Jadwal Personal</span>
+          <button class="btn btn-primary btn-icon" id="btn-tambah-jadwal">
+            <svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg><span>Jadwal Personal</span>
           </button>
         </div>
+
         <div class="table-wrap" id="jadwal-table-wrap">
           <table class="data-table">
             <thead>
-              <tr>
-                <th>Tanggal</th>
-                <th>Pukul</th>
-                <th>Kelas</th>
-                <th>Tipe</th>
-                <!-- <th>Nama Peserta</th> -->
-                <th>Lokasi</th>
-                <th>Status</th>
-                <th class="th-actions">Aksi</th></tr>
+              <tr><th>Tanggal</th><th>Jam</th><th>Grup</th><th>Jenis</th>
+                  <th>Pelatih</th><th>Status</th><th class="th-actions">Aksi</th></tr>
             </thead>
             <tbody id="tbody-jadwal"></tbody>
           </table>
         </div>
+        <div id="pager-jadwal"></div>
         <div class="admin-calendar" id="jadwal-calendar-view" hidden></div>
       </div>
 
-      <!-- ============== TAB BERITA ============== -->
-      <div class="tab-content" id="tab-berita" role="tabpanel">
-        <div class="toolbar">
-          <div class="toolbar-left">
-            <div class="search-wrap">
-              <svg class="ic search-ic" aria-hidden="true"><use href="#ic-search"/></svg>
-              <input type="text" id="search-berita" class="search-input" placeholder="Cari berita..." aria-label="Cari berita">
-            </div>
-          </div>
-          <button class="btn btn-primary btn-icon" onclick="openBeritaModal()">
-            <svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg>
-            <span>Tambah Berita</span>
-          </button>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr><th>Tanggal</th><th>Judul</th><th>Deskripsi</th><th>Status</th><th>Link</th><th class="th-actions">Aksi</th></tr>
-            </thead>
-            <tbody id="tbody-berita"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- ============== TAB KEHADIRAN ============== -->
+      <!-- ============== KEHADIRAN ============== -->
       <div class="tab-content" id="tab-kehadiran" role="tabpanel">
         <div class="toolbar">
           <div class="toolbar-left">
             <div class="search-wrap">
               <svg class="ic search-ic" aria-hidden="true"><use href="#ic-search"/></svg>
-              <input type="text" id="search-kehadiran" class="search-input" placeholder="Cari nama peserta..." aria-label="Cari kehadiran">
+              <input type="text" id="search-kehadiran" class="search-input"
+                     placeholder="Cari nama peserta..." aria-label="Cari kehadiran">
             </div>
             <div class="select-wrap">
-              <select id="filter-kelas-kehadiran" class="filter-select" aria-label="Filter kelas">
-                <option value="all">Semua Kelas</option>
+              <select id="filter-kelas-kehadiran" class="filter-select" aria-label="Filter grup">
+                <option value="all">Semua Grup</option>
                 <option value="Grup A">Grup A</option>
                 <option value="Grup B">Grup B</option>
                 <option value="Grup C">Grup C</option>
@@ -311,7 +227,7 @@
               <svg class="ic select-caret" aria-hidden="true"><use href="#ic-chevron-down"/></svg>
             </div>
             <div class="select-wrap">
-              <select id="filter-status-kehadiran" class="filter-select" aria-label="Filter status kehadiran">
+              <select id="filter-status-kehadiran" class="filter-select" aria-label="Filter status">
                 <option value="all">Semua Status</option>
                 <option value="hadir">Hadir</option>
                 <option value="izin">Izin</option>
@@ -321,36 +237,52 @@
             <div class="select-wrap">
               <select id="filter-periode" class="filter-select" aria-label="Filter periode">
                 <option value="all">Semua Periode</option>
-                <option value="minggu">Minggu Ini</option>
+                <option value="minggu">7 Hari Terakhir</option>
                 <option value="bulan">Bulan Ini</option>
                 <option value="tahun">Tahun Ini</option>
               </select>
               <svg class="ic select-caret" aria-hidden="true"><use href="#ic-chevron-down"/></svg>
             </div>
+            <div class="ui-segment ui-segment--sm" id="kehadiran-view-toggle" role="group" aria-label="Tampilan kehadiran">
+              <button type="button" data-val="list" class="active">☰ List</button>
+              <button type="button" data-val="table">▦ Tabel</button>
+            </div>
           </div>
-          <button class="btn btn-primary btn-icon" onclick="openExportExcelModal()">
-            <svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg>
-            <span>Export Excel</span>
+          <button class="btn btn-primary btn-icon" id="btn-export-kehadiran">
+            <svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg><span>Export Excel</span>
           </button>
         </div>
+
         <div class="table-wrap" id="kehadiran-table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Tanggal</th><th>Peserta</th><th>Kelas</th><th>Pukul</th><th>Status</th><th>Catatan</th><th class="th-actions">Aksi</th></tr>
+              <tr><th>Tanggal</th><th>Peserta</th><th>Grup</th><th>Jam</th>
+                  <th>Status</th><th>Catatan</th><th class="th-actions">Aksi</th></tr>
             </thead>
             <tbody id="tbody-kehadiran"></tbody>
           </table>
         </div>
+        <div id="pager-kehadiran"></div>
         <div class="admin-pivot" id="kehadiran-pivot-view" hidden></div>
       </div>
 
-      <!-- ============== TAB RAPOR ============== -->
+      <!-- ============== RAPOR ============== -->
       <div class="tab-content" id="tab-rapor" role="tabpanel">
         <div class="toolbar">
           <div class="toolbar-left">
             <div class="search-wrap">
               <svg class="ic search-ic" aria-hidden="true"><use href="#ic-search"/></svg>
-              <input type="text" id="search-rapor" class="search-input" placeholder="Cari peserta..." aria-label="Cari rapor">
+              <input type="text" id="search-rapor" class="search-input"
+                     placeholder="Cari peserta..." aria-label="Cari rapor">
+            </div>
+            <div class="select-wrap">
+              <select id="filter-kelas-rapor" class="filter-select" aria-label="Filter grup latihan">
+                <option value="all">Semua Grup</option>
+                <option value="Grup A">Grup A</option>
+                <option value="Grup B">Grup B</option>
+                <option value="Grup C">Grup C</option>
+              </select>
+              <svg class="ic select-caret" aria-hidden="true"><use href="#ic-chevron-down"/></svg>
             </div>
             <div class="select-wrap">
               <select id="filter-status-rapor" class="filter-select" aria-label="Filter status rapor">
@@ -367,53 +299,136 @@
               <svg class="ic select-caret" aria-hidden="true"><use href="#ic-chevron-down"/></svg>
             </div>
             <div class="select-wrap">
-              <select id="sort-rapor" class="filter-select" aria-label="Urutkan berdasarkan tanggal update">
+              <select id="sort-rapor" class="filter-select" aria-label="Urutkan rapor">
                 <option value="update_desc">Update Terbaru</option>
                 <option value="update_asc">Update Terlama</option>
-                <option value="nama_asc">Nama A–Z</option>
+                <option value="nama_asc">Nama A-Z</option>
               </select>
               <svg class="ic select-caret" aria-hidden="true"><use href="#ic-chevron-down"/></svg>
             </div>
           </div>
+          <button class="btn btn-primary btn-icon" id="btn-arsip-rapor" data-role="superadmin" hidden>
+            <svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg><span>Unduh Arsip ZIP</span>
+          </button>
         </div>
+
+        <p class="table-hint" id="rapor-hint"></p>
+
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>Peserta</th><th>Predikat</th><th>Catatan</th><th>Tanggal Update</th><th>Status</th><th class="th-actions">Aksi</th></tr>
+              <tr><th>Peserta</th><th>Predikat</th><th>Catatan</th>
+                  <th>Diperbarui</th><th>Status</th><th class="th-actions">Aksi</th></tr>
             </thead>
             <tbody id="tbody-rapor"></tbody>
           </table>
         </div>
+        <div id="pager-rapor"></div>
       </div>
 
-      <!-- ============== TAB PENGATURAN ============== -->
-      <div class="tab-content" id="tab-pengaturan" role="tabpanel">
-        <div id="admin-settings-root"></div>
+      <!-- ============== BERITA ============== -->
+      <div class="tab-content" id="tab-berita" role="tabpanel">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <div class="search-wrap">
+              <svg class="ic search-ic" aria-hidden="true"><use href="#ic-search"/></svg>
+              <input type="text" id="search-berita" class="search-input"
+                     placeholder="Cari judul atau isi berita..." aria-label="Cari berita">
+            </div>
+            <div class="select-wrap">
+              <select id="filter-penulis-berita" class="filter-select" aria-label="Filter penulis">
+                <option value="all">Semua Penulis</option>
+              </select>
+              <svg class="ic select-caret" aria-hidden="true"><use href="#ic-chevron-down"/></svg>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-icon" id="btn-tambah-berita">
+            <svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg><span>Tambah Berita</span>
+          </button>
+        </div>
+
+        <div class="penulis-stats" id="penulis-stats" hidden></div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Tanggal</th><th>Judul</th><th>Penulis</th><th>Audiens</th>
+                  <th>Lampiran</th><th class="th-actions">Aksi</th></tr>
+            </thead>
+            <tbody id="tbody-berita"></tbody>
+          </table>
+        </div>
+        <div id="pager-berita"></div>
+      </div>
+
+      <!-- ============== PELATIH (koordinator) ============== -->
+      <div class="tab-content" id="tab-pelatih" role="tabpanel">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <div class="search-wrap">
+              <svg class="ic search-ic" aria-hidden="true"><use href="#ic-search"/></svg>
+              <input type="text" id="search-pelatih" class="search-input"
+                     placeholder="Cari nama pelatih..." aria-label="Cari pelatih">
+            </div>
+          </div>
+          <button class="btn btn-primary btn-icon" id="btn-tambah-pelatih">
+            <svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg><span>Tambah Pelatih</span>
+          </button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Nama</th><th>Username</th><th>Peran</th><th>Jadwal Ditangani</th>
+                  <th>Status</th><th class="th-actions">Aksi</th></tr>
+            </thead>
+            <tbody id="tbody-pelatih"></tbody>
+          </table>
+        </div>
+        <div id="pager-pelatih"></div>
       </div>
 
     </div>
   </div>
 
-  <!-- Libraries untuk Excel Export & PDF Rapor -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.0/jspdf.plugin.autotable.min.js"></script>
+  <!-- Navigasi bawah (mobile) — dibangun dari daftar tab di atas -->
+  <nav class="bottom-nav" id="bottom-nav" aria-label="Navigasi utama"></nav>
 
-  <script src="assets/js/config.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.0/jspdf.plugin.autotable.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+
+  <script src="assets/js/config.js?v=20260906k"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="assets/js/supabase-client.js"></script>
-  <script src="assets/js/utils.js"></script>
-  <script src="assets/js/auth.js"></script>
-  <script src="assets/js/db.js"></script>
-  <script src="assets/js/crud-api.js"></script>
-  <script src="assets/js/sync.js"></script>
-  <script src="assets/js/schedule.js"></script>
-  <script src="assets/js/business-logic.js"></script>
-  <script src="assets/js/components/ui.js"></script>
-  <script src="assets/js/excel-export.js"></script>
-  <script src="assets/js/pdf-rapor.js"></script>
-  <script src="assets/js/admin-settings.js"></script>
-  <script src="assets/js/admin.js"></script>
-  <script src="assets/js/pwa.js"></script>
+  <script src="assets/js/supabase-client.js?v=20260906k"></script>
+  <script src="assets/js/lib/wita.js?v=20260906k"></script>
+  <script src="assets/js/lib/password.js?v=20260906k"></script>
+  <script src="assets/js/lib/wa.js?v=20260906k"></script>
+  <script src="assets/js/lib/numbering.js?v=20260906k"></script>
+  <script src="assets/js/lib/schedule-engine.js?v=20260906k"></script>
+  <script src="assets/js/lib/paginator.js?v=20260906k"></script>
+  <script src="assets/js/db.js?v=20260906k"></script>
+  <script src="assets/js/crud-api.js?v=20260906k"></script>
+  <script src="assets/js/sync.js?v=20260906k"></script>
+  <script src="assets/js/domain/base.js?v=20260906k"></script>
+  <script src="assets/js/domain/people.js?v=20260906k"></script>
+  <script src="assets/js/domain/training.js?v=20260906k"></script>
+  <script src="assets/js/domain/content.js?v=20260906k"></script>
+  <script src="assets/js/auth.js?v=20260906k"></script>
+  <script src="assets/js/utils.js?v=20260906k"></script>
+  <script src="assets/js/components/ui.js?v=20260906k"></script>
+  <script src="assets/js/excel-export.js?v=20260906k"></script>
+  <script src="assets/js/pdf-rapor.js?v=20260906k"></script>
+  <script src="assets/js/admin/core.js?v=20260906k"></script>
+  <script src="assets/js/admin/peserta.js?v=20260906k"></script>
+  <script src="assets/js/admin/jadwal.js?v=20260906k"></script>
+  <script src="assets/js/admin/kehadiran.js?v=20260906k"></script>
+  <script src="assets/js/admin/rapor.js?v=20260906k"></script>
+  <script src="assets/js/admin/berita.js?v=20260906k"></script>
+  <script src="assets/js/admin/pelatih.js?v=20260906k"></script>
+  <script src="assets/js/admin/settings.js?v=20260906k"></script>
+  <script src="assets/js/admin/boot.js?v=20260906k"></script>
+  <script src="assets/js/pwa.js?v=20260906k"></script>
 </body>
 </html>

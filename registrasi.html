@@ -2,29 +2,25 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pendaftaran - Bontang Akuatik</title>
+  <meta name="description" content="Daftar kelas pelatihan renang Bontang Akuatik Swimming Club. Pilih grup latihan dan durasi pelatihan sesuai kebutuhan Anda.">
+
+  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#169AC4">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Bontang Akuatik">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="robots" content="index, follow">
-  
-  <!-- SEO -->
-  <meta name="description" content="Formulir pendaftaran kelas renang Bontang Akuatik. Pilih kelas Grup A, B, atau C.">
-  <meta name="keywords" content="daftar renang bontang, registrasi Bontang Akuatik, pendaftaran kelas renang">
-  
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="assets/images/logo.webp">
+  <link rel="icon" type="image/png" href="assets/images/logo.webp">
   <link rel="apple-touch-icon" sizes="180x180" href="assets/images/logo.webp">
-  <link rel="icon" type="image/png" href="assets/images/logo.png">
-  <link rel="stylesheet" href="assets/css/global.css">
-  <link rel="stylesheet" href="assets/css/navbar.css">
-  <link rel="stylesheet" href="assets/css/auth.css">
-  <link rel="stylesheet" href="assets/css/pwa.css">
-  <link rel="stylesheet" href="assets/css/components.css">
-  
-  <title>Daftar Kelas Renang - Bontang Akuatik</title>
+
+  <link rel="stylesheet" href="assets/css/global.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/navbar.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/auth.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/pwa.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/components.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/components-v2.css?v=20260906k">
 </head>
 
 <body>
@@ -36,9 +32,9 @@
           <h1>Daftar Kelas Renang</h1>
           <p>Lengkapi data Anda untuk mulai latihan di Bontang Akuatik</p>
         </div>
-        
+
         <div class="auth-body">
-          <!-- Stepper untuk UX -->
+
           <div class="stepper" id="form-stepper">
             <div class="step active" data-step="1"><span class="step-num">1</span><span class="step-label">Akun</span></div>
             <div class="step" data-step="2"><span class="step-num">2</span><span class="step-label">Data Pribadi</span></div>
@@ -46,113 +42,138 @@
             <div class="step" data-step="4"><span class="step-num">4</span><span class="step-label">Grup</span></div>
           </div>
 
-          <form id="form-registrasi" autocomplete="on">
+          <form id="form-registrasi" autocomplete="on" novalidate>
 
-            <!-- STEP 1: Akun -->
+            <!-- LANGKAH 1: Akun -->
             <div class="form-step active" data-step="1">
               <h4 class="form-section-title">Data Akun</h4>
               <div class="form-grid-2">
                 <div class="form-group">
-                  <label>Nama Lengkap *</label>
-                  <input type="text" name="nama_lengkap" class="form-control" required placeholder="e.g., Muhammad Ghazi Al Ghifari" autocomplete="name">
+                  <label for="reg-nama">Nama Lengkap *</label>
+                  <input type="text" id="reg-nama" name="nama_lengkap" class="form-control" required
+                         placeholder="Contoh: Muhammad Ghazi Al Ghifari" autocomplete="name">
                 </div>
                 <div class="form-group">
-                  <label>Nama Panggilan *</label>
-                  <input type="text" name="username" class="form-control" required placeholder="e.g., Ghazi" autocomplete="username">
+                  <label for="reg-username">Nama Panggilan (Username) *</label>
+                  <input type="text" id="reg-username" name="username" class="form-control" required
+                         placeholder="Contoh: Ghazi" autocomplete="username">
                 </div>
               </div>
+
+              <div class="form-group">
+                <label for="reg-password">Password *</label>
+                <div class="password-wrap">
+                  <input type="password" id="reg-password" name="password" class="form-control" required
+                         placeholder="Buat password yang kuat" autocomplete="new-password">
+                  <button type="button" id="togglePassword" class="password-toggle"></button>
+                </div>
+                <div class="pw-checklist" id="reg-pass-checklist"></div>
+              </div>
+
               <div class="form-grid-2">
                 <div class="form-group">
-                  <label>Password *</label>
-                  <div class="password-wrap">
-                    <input type="password" name="password" id="password" class="form-control" required minlength="6" placeholder="Silahkan Buat Password" autocomplete="password">
-                    <button id="togglePassword" class="password-toggle" type="button"></button>
-                  </div>
+                  <label for="reg-email">Email Aktif *</label>
+                  <input type="email" id="reg-email" name="email" class="form-control" required
+                         placeholder="nama@email.com" autocomplete="email" inputmode="email">
+                  <p class="form-helper">Dipakai untuk memulihkan akun bila Anda lupa password.</p>
                 </div>
                 <div class="form-group">
-                    <label>Nomor WhatsApp *</label>
-                    <div class="phone-input-group">
-                        <span class="phone-prefix">+62</span>
-                        <input type="tel" name="nomor_whatsapp" class="phone-input" placeholder="81234567890" inputmode="numeric" maxlength="12" required>
-                    </div>
+                  <label for="reg-wa">Nomor WhatsApp *</label>
+                  <div class="phone-input-group">
+                    <span class="phone-prefix">+62</span>
+                    <input type="tel" id="reg-wa" name="nomor_whatsapp" class="phone-input" required
+                           placeholder="81234567890" inputmode="numeric" maxlength="12" autocomplete="tel">
+                  </div>
                 </div>
               </div>
             </div>
 
-            <!-- STEP 2: Data Pribadi -->
+            <!-- LANGKAH 2: Data pribadi -->
             <div class="form-step" data-step="2">
               <h4 class="form-section-title">Data Pribadi</h4>
-              <div class="form-grid-1">
-                <div class="form-group">
-                  <label>Jenis Kelamin *</label>
-                  <select name="jenis_kelamin" id="jenis_kelamin" class="form-control" required>
-                    <option value="">- Pilih -</option>
-                    <option value="Laki-laki">Laki-laki</option>
-                    <option value="Perempuan">Perempuan</option>
-                  </select>
-                </div>
+              <div class="form-group">
+                <label for="jenis_kelamin">Jenis Kelamin *</label>
+                <select name="jenis_kelamin" id="jenis_kelamin" class="form-control" required>
+                  <option value="">- Pilih -</option>
+                  <option value="Laki-laki">Laki-laki</option>
+                  <option value="Perempuan">Perempuan</option>
+                </select>
               </div>
               <div class="form-grid-2">
                 <div class="form-group">
-                  <label>Tempat Lahir *</label>
-                  <input type="text" name="tempat_lahir" class="form-control" required placeholder="e.g., Bontang">
+                  <label for="reg-tempat">Tempat Lahir *</label>
+                  <input type="text" id="reg-tempat" name="tempat_lahir" class="form-control" required placeholder="Contoh: Bontang">
                 </div>
                 <div class="form-group">
-                  <label>Tanggal Lahir *</label>
+                  <label for="tanggal_lahir">Tanggal Lahir *</label>
                   <input type="date" name="tanggal_lahir" id="tanggal_lahir" class="form-control" required>
                   <p class="form-helper" id="kelompok-umur-preview"></p>
                 </div>
               </div>
+              <div class="form-group">
+                <label for="reg-nisnas">NISNAS <span class="text-muted">(opsional)</span></label>
+                <input type="text" id="reg-nisnas" name="nisnas" class="form-control"
+                       placeholder="Nomor keanggotaan dari klub" inputmode="numeric">
+                <p class="form-helper">Nomor Induk Siswa Nasional Akuatik Swimming, diterbitkan oleh
+                   klub renang. Kosongkan bila belum memilikinya &mdash; admin akan membantu penerbitannya.</p>
+              </div>
             </div>
 
-            <!-- STEP 3: Sekolah -->
+            <!-- LANGKAH 3: Sekolah -->
             <div class="form-step" data-step="3">
               <h4 class="form-section-title">Data Sekolah</h4>
               <div class="form-group">
-                <label>Asal Sekolah *</label>
-                <input type="text" name="asal_sekolah" class="form-control" required placeholder="e.g., SD 1 Yayasan Pupuk Kaltim">
+                <label for="reg-sekolah">Asal Sekolah *</label>
+                <input type="text" id="reg-sekolah" name="asal_sekolah" class="form-control" required
+                       placeholder="Contoh: SD 1 Yayasan Pupuk Kaltim">
               </div>
               <div class="form-grid-2">
                 <div class="form-group">
-                  <label>Kelas Sekolah *</label>
-                  <input type="text" name="kelas_sekolah" class="form-control" required placeholder="e.g., 4A">
+                  <label for="reg-kelas-sekolah">Kelas Sekolah *</label>
+                  <input type="text" id="reg-kelas-sekolah" name="kelas_sekolah" class="form-control" required placeholder="Contoh: 4A">
                 </div>
                 <div class="form-group">
-                  <label>Wali Kelas *</label>
-                  <input type="text" name="wali_kelas" class="form-control" required placeholder="e.g., Pak Budi">
+                  <label for="reg-wali">Wali Kelas *</label>
+                  <input type="text" id="reg-wali" name="wali_kelas" class="form-control" required placeholder="Contoh: Pak Budi">
                 </div>
               </div>
             </div>
 
-            <!-- STEP 4: Kelas Renang -->
+            <!-- LANGKAH 4: Grup & periode -->
             <div class="form-step" data-step="4">
-              <!-- Info kelas referensi -->
               <div class="class-info-banner">
-                <h4>Info Kelas Tersedia</h4>
+                <h4>Info Grup Latihan</h4>
                 <div class="class-info-list" id="class-info-list"></div>
               </div>
-              <h4 class="form-section-title">Pilihan Kelas Renang</h4>
+
+              <h4 class="form-section-title">Pilihan Grup Latihan</h4>
               <div class="form-group">
-                <label>Pilih Kelas Renang *</label>
+                <label for="kelas">Pilih Grup Latihan *</label>
                 <select name="kelas" id="kelas" class="form-control" required></select>
               </div>
               <div class="form-grid-2">
                 <div class="form-group">
-                  <label>Mulai Pelatihan Sejak *</label>
+                  <label for="tanggal_mulai">Mulai Pelatihan Sejak *</label>
                   <input type="date" name="tanggal_mulai" id="tanggal_mulai" class="form-control" required>
                 </div>
                 <div class="form-group">
-                  <label>Durasi (bulan) *</label>
-                  <input type="number" name="durasi" id="durasi" class="form-control" required min="1" max="24" value="1" required placeholder="Periode Pelatihan">
+                  <label for="durasi">Durasi Pelatihan *</label>
+                  <select name="durasi" id="durasi" class="form-control" required></select>
                 </div>
               </div>
               <div class="form-group">
-                <label>Pelatihan Berakhir Pada</label>
-                <input type="text" id="tanggal_akhir_display" class="form-control" readonly placeholder="Otomatis terisi sesuai durasi">
+                <label for="tanggal_akhir_display">Pelatihan Berakhir Pada</label>
+                <input type="text" id="tanggal_akhir_display" class="form-control" readonly
+                       placeholder="Otomatis terisi sesuai durasi">
+              </div>
+
+              <div class="info-banner info-banner--soft">
+                <div aria-hidden="true">ℹ️</div>
+                <p>Setelah mendaftar, Anda <strong>langsung dapat masuk</strong> ke aplikasi.
+                   Jadwal latihan akan terbuka otomatis begitu koordinator mengonfirmasi pembayaran Anda.</p>
               </div>
             </div>
 
-            <!-- Navigation buttons -->
             <div class="form-nav">
               <button type="button" class="btn btn-secondary" id="btn-prev" disabled>← Sebelumnya</button>
               <button type="button" class="btn btn-primary" id="btn-next">Selanjutnya →</button>
@@ -160,25 +181,34 @@
             </div>
           </form>
         </div>
+
         <div class="auth-footer">
-          Sudah punya akun? <a href="login.html">Login di sini</a>
+          Sudah punya akun? <a href="login.html">Masuk di sini</a>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="assets/js/config.js"></script>
+  <script src="assets/js/config.js?v=20260906k"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="assets/js/supabase-client.js"></script>
-  <script src="assets/js/utils.js"></script>
-  <script src="assets/js/auth.js"></script>
-  <script src="assets/js/db.js"></script>
-  <script src="assets/js/crud-api.js"></script>
-  <script src="assets/js/sync.js"></script>
-  <script src="assets/js/schedule.js"></script>
-  <script src="assets/js/business-logic.js"></script>
-  <script src="assets/js/components/ui.js"></script>
-  <script src="assets/js/registrasi.js"></script>
-  <script src="assets/js/pwa.js"></script>
+  <script src="assets/js/supabase-client.js?v=20260906k"></script>
+  <script src="assets/js/lib/wita.js?v=20260906k"></script>
+  <script src="assets/js/lib/password.js?v=20260906k"></script>
+  <script src="assets/js/lib/wa.js?v=20260906k"></script>
+  <script src="assets/js/lib/numbering.js?v=20260906k"></script>
+  <script src="assets/js/lib/schedule-engine.js?v=20260906k"></script>
+  <script src="assets/js/db.js?v=20260906k"></script>
+  <script src="assets/js/crud-api.js?v=20260906k"></script>
+  <script src="assets/js/sync.js?v=20260906k"></script>
+  <script src="assets/js/domain/base.js?v=20260906k"></script>
+  <script src="assets/js/domain/people.js?v=20260906k"></script>
+  <script src="assets/js/domain/training.js?v=20260906k"></script>
+  <script src="assets/js/domain/content.js?v=20260906k"></script>
+  <script src="assets/js/auth.js?v=20260906k"></script>
+  <script src="assets/js/utils.js?v=20260906k"></script>
+  <script src="assets/js/components/ui.js?v=20260906k"></script>
+  <script src="assets/js/registrasi.js?v=20260906k"></script>
+  <script src="assets/js/lib/help-widget.js?v=20260906k"></script>
+  <script src="assets/js/pwa.js?v=20260906k"></script>
 </body>
 </html>
