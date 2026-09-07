@@ -597,7 +597,38 @@
       else window.location.reload();
     },
     /* ---------- CONNECTION ---------- */
+    /**
+     * Pengawas koneksi.
+     *
+     * Dua aturan penting:
+     *  1. Status diambil dari lib/net.js (hasil verifikasi nyata ke server),
+     *     bukan dari navigator.onLine yang bisa keliru menyatakan offline.
+     *  2. Bila components/ui.js hadir, indikator diserahkan sepenuhnya ke
+     *     banner bawah milik UI. Sebelumnya dua indikator muncul bersamaan
+     *     untuk satu kejadian yang sama — pesan ganda sekaligus menambah
+     *     elemen mengambang yang menutupi antarmuka.
+     */
     setupConnectionWatch() {
+      const uiOwnsIndicator = (typeof UI !== 'undefined' && typeof UI.mountOfflineBanner === 'function');
+
+      if (typeof Net !== 'undefined' && typeof Net.onChange === 'function') {
+        const apply = (state, prev) => {
+          if (uiOwnsIndicator) return;                 // hindari indikator ganda
+          if (state === 'offline') {
+            this.showOfflineBadge();
+            if (prev && prev !== state) this.toast('Perangkat offline. Konten dari cache tetap tersedia.', 'warning');
+          } else {
+            this.removeOfflineBadge();
+            if (prev && prev !== 'online' && state === 'online') this.toast('Koneksi internet kembali pulih.', 'success');
+          }
+        };
+        Net.onChange(apply);
+        apply(Net.state(), null);
+        return;
+      }
+
+      // Cadangan bila lib/net.js gagal dimuat.
+      if (uiOwnsIndicator) return;
       window.addEventListener('online',  () => { this.removeOfflineBadge(); this.toast('Koneksi internet kembali pulih.', 'success'); });
       window.addEventListener('offline', () => { this.showOfflineBadge();  this.toast('Anda offline. Konten dari cache tetap tersedia.', 'warning'); });
       if (!navigator.onLine) this.showOfflineBadge();

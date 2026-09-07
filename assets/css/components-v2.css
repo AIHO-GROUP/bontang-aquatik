@@ -885,3 +885,91 @@ body:has(#ui-offline-banner.show) { --tumpuk-offline: 42px; }
   .contact-card a,
   .auth-body a:not(.btn) { padding-block: 11px; }
 }
+
+/* =====================================================================
+   TOMBOL TUTUP DIALOG — silang merah di sudut kanan atas
+   =====================================================================
+   Tombolnya sebenarnya sudah ada di kepala dialog, tetapi admin.css
+   memberi .modal-close aturan `font-size: 0` (dibuat untuk tombol berisi
+   ikon SVG) sedangkan UI.modal mengisinya dengan karakter "×". Hasilnya
+   silang itu dirender setinggi nol alias tidak pernah terlihat: pengguna
+   kehilangan satu-satunya penanda "tutup" di sudut kanan atas dan hanya
+   bisa menekan Esc atau menebak latar belakang bisa diklik.
+
+   Berkas ini dimuat PALING AKHIR di seluruh halaman, jadi satu aturan di
+   sini berlaku untuk semua jenis dialog — dialog aplikasi, dialog pemasangan
+   PWA, kartu pemberitahuan, dan panel bantuan — tanpa perlu menyentuh
+   berkas gaya per halaman dan tanpa !important. */
+.modal-close,
+.pwa-modal-close,
+.notice-card__close,
+.help-panel__close {
+  flex: 0 0 auto;
+  width: 36px; height: 36px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 24px; line-height: 1; font-weight: 700;
+  font-family: inherit;
+  border-radius: 10px;
+  border: 1px solid var(--badge-danger-border);
+  background: var(--badge-danger-bg);
+  color: var(--color-danger);
+  cursor: pointer;
+  transition: var(--transition);
+}
+/* Varian berikon: ukuran ikon disamakan, warnanya mengikuti tombol. */
+.modal-close svg,
+.pwa-modal-close svg,
+.notice-card__close svg,
+.help-panel__close svg { width: 18px; height: 18px; }
+
+.modal-close:hover,
+.pwa-modal-close:hover,
+.notice-card__close:hover,
+.help-panel__close:hover,
+.modal-close:focus-visible,
+.pwa-modal-close:focus-visible,
+.notice-card__close:focus-visible,
+.help-panel__close:focus-visible {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #fff;
+  /* Tanpa putaran 90°: sasaran sentuh tetap diam saat jari mendekat. */
+  transform: none;
+}
+.modal-close:focus-visible,
+.pwa-modal-close:focus-visible,
+.notice-card__close:focus-visible,
+.help-panel__close:focus-visible { outline: 2px solid var(--color-danger); outline-offset: 2px; }
+
+/* Kepala dialog tanpa judul: tombol tutup tetap di kanan atas, tanpa
+   garis pemisah yang menggantung di atas isi yang kosong. */
+.modal-header--tanpa-judul {
+  justify-content: flex-end;
+  border-bottom: none;
+  padding-bottom: 0;
+  background: transparent;
+}
+.modal-header--tanpa-judul h3 { display: none; }
+
+/* Kartu pemberitahuan: tombol tutup mengambang di sudut kartu, dan judul
+   diberi ruang supaya tidak pernah berada di bawah tombol. */
+.notice-card { position: relative; }
+.notice-card__close { position: absolute; top: 12px; right: 12px; }
+.notice-card h2 { padding-right: 44px; }
+
+/* Dialog pemasangan PWA memakai posisi absolut miliknya sendiri; hanya
+   jaraknya yang disamakan dengan dialog lain. */
+.pwa-modal-close { top: 12px; right: 12px; }
+
+@media (pointer: coarse) {
+  .modal-close,
+  .pwa-modal-close,
+  .notice-card__close,
+  .help-panel__close { width: 42px; height: 42px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal-close,
+  .pwa-modal-close,
+  .notice-card__close,
+  .help-panel__close { transition: none; }
+}

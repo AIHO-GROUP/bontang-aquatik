@@ -18,7 +18,7 @@
             sudah punya lapisan cache sendiri di IndexedDB.
    ================================================================ */
 
-const VERSION       = 'v2.1.2';
+const VERSION       = 'v2.1.3';
 const STATIC_CACHE  = 'akuatik-static-' + VERSION;
 const RUNTIME_CACHE = 'akuatik-runtime-' + VERSION;
 
@@ -77,6 +77,12 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
+
+  // Permintaan VERIFIKASI KONEKSI (lib/net.js) tidak boleh disentuh sama
+  // sekali: bila Service Worker sempat menjawabnya dari cache, verifikasi
+  // akan menyimpulkan "masih terhubung" padahal jaringan mati — persis
+  // kekeliruan yang sedang diperbaiki. Biarkan menembus ke jaringan.
+  if (url.searchParams.has('_probe')) return;
 
   // Lintas-origin (Supabase, CDN) dibiarkan apa adanya — tidak di-cache.
   if (url.origin !== self.location.origin) return;

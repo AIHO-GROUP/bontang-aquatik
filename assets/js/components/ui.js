@@ -101,11 +101,17 @@
     dialog.setAttribute('role', 'dialog');
     dialog.setAttribute('aria-modal', 'true');
 
-    let header = '';
-    if (cfg.title) {
-      header = `<div class="modal-header"><h3>${escapeHtml(cfg.title)}</h3>
-        <button class="modal-close" data-ui-close aria-label="Tutup">&times;</button></div>`;
-    }
+    /* Tombol tutup WAJIB ada di setiap dialog.
+       Sebelumnya kepala dialog hanya dibuat bila cfg.title diisi, sehingga
+       dialog tanpa judul sama sekali tidak punya jalan keluar yang terlihat —
+       pengguna hanya bisa menekan Esc atau menebak latar belakangnya bisa
+       diklik. type="button" ditegaskan supaya tombol ini tidak pernah ikut
+       mengirim formulir yang kebetulan ada di dalam dialog. */
+    const judul = cfg.title ? escapeHtml(cfg.title) : '';
+    const header = `<div class="modal-header${cfg.title ? '' : ' modal-header--tanpa-judul'}">
+        <h3>${judul}</h3>
+        <button type="button" class="modal-close" data-ui-close aria-label="Tutup dialog" title="Tutup">&times;</button>
+      </div>`;
     const bodyHtml = typeof cfg.body === 'string' ? cfg.body : '';
     dialog.innerHTML = `${header}<div class="modal-body">${bodyHtml}</div>`;
 
@@ -290,15 +296,51 @@
   /* =================================================================
      OFFLINE STATE — banner global + status helper
      ================================================================= */
+  /**
+   * Satu-satunya indikator koneksi milik aplikasi.
+   *
+   * Sumbernya lib/net.js, BUKAN navigator.onLine — nilai itu kerap keliru
+   * menyatakan offline padahal koneksi sehat, dan banner-nya lalu tersangkut
+   * karena peristiwa 'online' penyeimbangnya tidak selalu ikut terpicu.
+   * Pesan dibedakan agar jujur: perangkat yang offline dan server yang tidak
+   * menjawab adalah dua hal berbeda.
+   */
+  const OFFLINE_TEXT = {
+    offline: '📡 Perangkat sedang offline — perubahan tersimpan dan dikirim otomatis saat koneksi kembali.',
+    server:  '⚠️ Server belum dapat dihubungi — data yang tampil berasal dari salinan di perangkat.'
+  };
+
   function mountOfflineBanner() {
     if (document.getElementById('ui-offline-banner')) return;
-    const b = el('div', '', '📡 Anda sedang offline — perubahan akan disinkronkan saat koneksi kembali.');
+    const b = el('div', '', OFFLINE_TEXT.offline);
     b.id = 'ui-offline-banner';
+    b.setAttribute('role', 'status');
+    b.setAttribute('aria-live', 'polite');
     document.body.appendChild(b);
-    const update = () => b.classList.toggle('show', !navigator.onLine);
-    window.addEventListener('online', () => { update(); toast('Koneksi kembali tersambung.', 'success'); });
-    window.addEventListener('offline', () => { update(); });
-    update();
+
+    let last = 'online';
+    function render(state) {
+      const bad = (state === 'offline' || state === 'server');
+      if (bad) b.textContent = OFFLINE_TEXT[state];
+      b.classList.toggle('show', bad);
+      // Notifikasi pemulihan hanya setelah benar-benar sempat terputus,
+      // sehingga tidak ada lagi "koneksi pulih" yang muncul tiba-tiba.
+      if (bad === false && last !== 'online') toast('Koneksi kembali tersambung.', 'success');
+      last = state;
+    }
+
+    if (global.Net && typeof global.Net.onChange === 'function') {
+      global.Net.onChange((state) => render(state));
+      render(global.Net.state());
+      return;
+    }
+
+    // Cadangan bila lib/net.js gagal dimuat: perilaku lama, tetapi status
+    // offline tetap dikonfirmasi ulang sesaat agar tidak salah tuduh.
+    const legacy = () => render(navigator.onLine ? 'online' : 'offline');
+    window.addEventListener('online', legacy);
+    window.addEventListener('offline', () => setTimeout(legacy, 1200));
+    legacy();
   }
 
   const UI = {

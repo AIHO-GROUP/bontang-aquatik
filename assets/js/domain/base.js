@@ -77,17 +77,32 @@ const BizUtil = {
 /**
  * Kirim operasi Create/Update/Delete ke server.
  *
- * Bila gagal karena TIDAK ADA KONEKSI, operasi diantre ke Outbox dan
- * dianggap berhasil secara lokal (optimistik) — data sudah benar di cache
- * dan akan tersinkron begitu online. Kegagalan LAIN (mis. baris tidak
- * ditemukan di server) tetap dikembalikan sebagai kegagalan asli.
+ * Bila gagal karena TIDAK ADA KONEKSI atau server sedang tidak merespons
+ * (5xx/429), operasi diantre ke Outbox dan dianggap berhasil secara lokal
+ * (optimistik) — data sudah benar di cache dan akan tersinkron begitu
+ * koneksi pulih. PENOLAKAN SADAR dari server (baris tidak ditemukan,
+ * validasi, kebijakan akses) tetap dikembalikan sebagai kegagalan asli
+ * beserta pesannya, tidak lagi disamarkan sebagai "offline".
  */
+let _lastQueuedNotice = 0;
+
 async function persist(resource, op, payload) {
   const res = await CrudApi[op](resource, payload);
   if (res && res.success) return { success: true, queued: false, raw: res };
   if (res && res.offline) {
     await Sync.queue(resource, op, payload);
-    return { success: true, queued: true, raw: res };
+    // Beri tahu sekali saja (maksimal tiap 10 detik) supaya operasi massal
+    // tidak membanjiri layar dengan notifikasi yang sama.
+    const now = Date.now();
+    if (now - _lastQueuedNotice > 10000) {
+      _lastQueuedNotice = now;
+      try {
+        if (typeof Utils !== 'undefined' && Utils.notify) {
+          Utils.notify('Perubahan tersimpan di perangkat dan akan dikirim otomatis saat koneksi pulih.', 'warning');
+        }
+      } catch (e) { /* abaikan */ }
+    }
+    return { success: true, queued: true, raw: res, message: res.message };
   }
   return { success: false, queued: false, raw: res, message: res && res.message };
 }

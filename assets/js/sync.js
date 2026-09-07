@@ -187,13 +187,19 @@ const Sync = {
    * @param {function} onUpdated    dipanggil setelah sinkronisasi selesai.
    */
   async init(entityNames, onUpdated) {
+    this._lastEntities  = entityNames.slice();
+    this._lastOnUpdated = onUpdated;
     const needSettings = entityNames.includes('__settings__');
     const real = entityNames.filter((e) => e !== '__settings__');
 
     await Store.loadFromLocalDB();
     if (needSettings) await this._loadSettingsFromLocal();
 
-    if (navigator.onLine) {
+    // Keputusan menarik data TIDAK memakai navigator.onLine: nilainya bisa
+    // keliru false (pindah Wi-Fi/seluler, VPN, bangun dari tidur) sehingga
+    // halaman tampak "beku" pada data lama padahal koneksi sehat. Net hanya
+    // menahan bila ketidakterhubungan sudah terbukti lewat verifikasi.
+    if (typeof Net === 'undefined' || Net.isOnline()) {
       // Sengaja TIDAK di-await: caller sudah bisa merender dari cache lokal
       // sekarang, hasil server disusulkan lewat onUpdated().
       Promise.all([
@@ -211,8 +217,40 @@ const Sync = {
 
     if (!this._onlineBound) {
       this._onlineBound = true;
-      window.addEventListener('online', () => this.flushOutbox());
+      if (typeof Net !== 'undefined' && Net.onChange) {
+        // Pulih menurut VERIFIKASI, bukan menurut peristiwa 'online' peramban
+        // yang sering tidak terpicu setelah gangguan singkat.
+        Net.onChange((state, prev) => {
+          if (state === 'online' && prev !== 'online') { this.flushOutbox(); this.resync(); }
+        });
+      } else {
+        window.addEventListener('online', () => this.flushOutbox());
+      }
     }
+  },
+
+  /**
+   * Tarik ulang entitas yang terakhir diminta halaman ini. Dipanggil saat
+   * koneksi terbukti pulih supaya layar tidak tertinggal pada data lama
+   * tanpa perlu pengguna memuat ulang halaman.
+   */
+  async resync() {
+    const names = this._lastEntities;
+    if (!names || !names.length) return;
+    if (typeof Net !== 'undefined' && !Net.isOnline()) return;
+    const real = names.filter((e) => e !== '__settings__');
+    const needSettings = names.indexOf('__settings__') !== -1;
+    try {
+      const [pullRes] = await Promise.all([
+        this.pullMany(real, { silent: true }),
+        needSettings ? this.pullSettings({ silent: true }) : Promise.resolve()
+      ]);
+      Store.invalidate();
+      if (typeof Auth !== 'undefined' && Auth.syncRoleFromStore) {
+        try { Auth.syncRoleFromStore(); } catch (e) { /* abaikan */ }
+      }
+      if (typeof this._lastOnUpdated === 'function') this._lastOnUpdated(pullRes);
+    } catch (e) { /* abaikan — cache lokal tetap dipakai */ }
   },
 
   /** Antrekan operasi yang gagal terkirim (mis. sedang offline). */
@@ -223,7 +261,8 @@ const Sync = {
 
   /** Kirim ulang seluruh antrean Outbox begitu koneksi tersedia kembali. */
   async flushOutbox() {
-    if (!navigator.onLine || this._flushing) return;
+    if (typeof Net !== 'undefined' && !Net.isOnline()) return;
+    if (this._flushing) return;
     this._flushing = true;
     try {
       let items = [];
@@ -233,7 +272,9 @@ const Sync = {
         if (res && res.success) {
           try { await LocalDB.outboxRemove(item._outboxId); } catch (e) { /* abaikan */ }
         } else if (res && res.offline) {
-          break;   // masih offline — coba lagi nanti, urutan operasi dijaga
+          // Kegagalan transport ATAU server sibuk (5xx/429): jangan dibuang,
+          // coba lagi nanti dengan urutan operasi tetap terjaga.
+          break;
         } else {
           // Ditolak server (mis. baris sudah dihapus di perangkat lain).
           // Membiarkannya di antrean akan memblokir selamanya, jadi dibuang.

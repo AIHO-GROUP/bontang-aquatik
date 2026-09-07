@@ -112,6 +112,11 @@ const Utils = {
       const html =
         '<div class="modal-backdrop active" id="confirm-modal">' +
           '<div class="modal modal-sm">' +
+            // Kepala dialog + tombol tutup: dialog cadangan ini pun harus punya
+            // jalan keluar yang terlihat di sudut kanan atas.
+            '<div class="modal-header"><h3>Konfirmasi</h3>' +
+              '<button type="button" class="modal-close" data-confirm="no" ' +
+                      'aria-label="Tutup dialog" title="Tutup">&times;</button></div>' +
             '<div class="modal-body"><p style="font-size:15px;">' + message + '</p></div>' +
             '<div class="modal-footer">' +
               '<button class="btn btn-secondary" data-confirm="no">Batal</button>' +
@@ -441,6 +446,8 @@ const Utils = {
     const html =
       '<div class="notice-backdrop" id="change-notice">' +
         '<div class="notice-card" role="dialog" aria-modal="true" aria-labelledby="notice-title">' +
+          '<button type="button" class="notice-card__close" id="notice-close" ' +
+                  'aria-label="Tutup pemberitahuan" title="Tutup">&times;</button>' +
           '<div class="notice-card__icon" aria-hidden="true">✨</div>' +
           '<h2 id="notice-title">' + this.escapeHtml(notice.title) + '</h2>' +
           '<div class="notice-card__body">' + intro + bullets + outro + '</div>' +
@@ -456,6 +463,12 @@ const Utils = {
       setTimeout(() => el.remove(), 200);
     };
     document.getElementById('notice-ok').addEventListener('click', dismiss);
+    document.getElementById('notice-close').addEventListener('click', dismiss);
+    document.addEventListener('keydown', function esc(e) {
+      if (e.key !== 'Escape') return;
+      document.removeEventListener('keydown', esc);
+      if (document.getElementById('change-notice')) dismiss();
+    });
     el.addEventListener('click', (e) => { if (e.target === el) dismiss(); });
   },
 

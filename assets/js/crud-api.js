@@ -7,7 +7,9 @@
  *   • menjalankan read/create/update/delete,
  *   • mengunggah/menghapus berkas lampiran,
  *   • membedakan kegagalan JARINGAN (offline: true, boleh diantre) dari
- *     penolakan bisnis dari server (tidak boleh diantre).
+ *     penolakan bisnis dari server (tidak boleh diantre) — klasifikasinya
+ *     dipusatkan di lib/net.js agar penolakan server TIDAK PERNAH lagi
+ *     dilaporkan kepada pengguna sebagai "perangkat offline".
  *
  * Bentuk response konsisten: { success, data?, message?, count?, offline? }
  */
@@ -31,31 +33,82 @@ const CrudApi = {
     const silent = !!opts.silent;
     if (!silent) Utils.showLoader(true);
     try {
-      if (resource === 'settings') return await this._settingsDispatch(op, payload);
-
-      const map = RESOURCE_MAP[resource];
-      if (!map) return { success: false, message: 'Resource tidak dikenal: ' + resource };
-
-      if (op === 'read')   return await this._crudRead(map.table, opts);
-      if (op === 'create') return await this._crudCreate(map.table, payload);
-      if (op === 'update') return await this._crudUpdate(map.table, map.idCol, payload);
-      if (op === 'delete') return await this._crudDelete(map.table, map.idCol, payload);
-      return { success: false, message: 'Operasi tidak dikenal: ' + op };
+      const out = await this._dispatch(resource, op, payload, opts);
+      // Server MENJAWAB (walau jawabannya menolak) => koneksi terbukti sehat.
+      // Inilah pemulihan status tercepat: tidak menunggu peristiwa 'online'
+      // peramban yang sering tidak pernah datang.
+      this._net('reportSuccess');
+      return out;
     } catch (err) {
-      // offline:true menandai kegagalan JARINGAN/TRANSPORT (perangkat offline,
-      // Supabase tidak terjangkau) — BUKAN penolakan bisnis dari server, yang
-      // dikembalikan sebagai objek biasa (lihat _crudUpdate/_crudDelete).
-      // Dipakai domain/base.js (persist) untuk memutuskan apakah operasi boleh
-      // diantre ke Outbox dan dianggap sukses secara optimistik.
-      console.error('CrudApi error:', resource, op, err);
-      return {
-        success: false,
-        offline: true,
-        message: 'Gagal terhubung ke server: ' + (err && err.message ? err.message : err)
-      };
+      return this._toFailure(resource, op, err);
     } finally {
       if (!silent) Utils.showLoader(false);
     }
+  },
+
+  /** Perutean murni; seluruh penanganan galat ada di _request. */
+  async _dispatch(resource, op, payload, opts = {}) {
+    if (resource === 'settings') return await this._settingsDispatch(op, payload);
+
+    const map = RESOURCE_MAP[resource];
+    if (!map) return { success: false, message: 'Resource tidak dikenal: ' + resource };
+
+    if (op === 'read')   return await this._crudRead(map.table, opts);
+    if (op === 'create') return await this._crudCreate(map.table, payload);
+    if (op === 'update') return await this._crudUpdate(map.table, map.idCol, payload);
+    if (op === 'delete') return await this._crudDelete(map.table, map.idCol, payload);
+    return { success: false, message: 'Operasi tidak dikenal: ' + op };
+  },
+
+  /** Pemanggilan aman ke lib/net.js (aplikasi tetap jalan bila belum dimuat). */
+  _net(method, arg) {
+    try {
+      if (typeof Net !== 'undefined' && typeof Net[method] === 'function') return Net[method](arg);
+    } catch (e) { /* abaikan */ }
+    return null;
+  },
+
+  /** Lampirkan kode status HTTP ke objek error Supabase agar bisa diklasifikasi. */
+  _withStatus(error, status) {
+    try { if (error && status && !error.status) error.status = status; } catch (e) { /* abaikan */ }
+    return error;
+  },
+
+  /**
+   * Terjemahkan galat menjadi response standar.
+   *
+   * offline:true HANYA untuk kegagalan yang MASIH BISA DICOBA ULANG:
+   *   • transport   — server tidak pernah terjangkau (jaringan putus);
+   *   • server-busy — server menjawab 5xx/429/timeout.
+   * Penolakan sadar dari server (RLS, validasi, 4xx) dikembalikan sebagai
+   * kegagalan asli beserta pesannya, sehingga TIDAK lagi diantre diam-diam
+   * ke Outbox dan tidak lagi memunculkan label "offline" yang keliru.
+   */
+  _toFailure(resource, op, err) {
+    const kind = this._net('classify', err) || 'transport';
+    console.error('CrudApi error [' + kind + ']:', resource, op, err);
+
+    if (kind === 'transport') this._net('reportFailure', err);
+    else this._net('reportSuccess');   // server menjawab => koneksi sehat
+
+    const raw = (err && err.message) ? String(err.message) : String(err || '');
+    let message;
+    if (kind === 'transport') {
+      message = 'Tidak dapat menghubungi server. Periksa koneksi internet Anda.';
+    } else if (kind === 'server-busy') {
+      message = 'Server sedang tidak merespons. Perubahan akan dicoba lagi secara otomatis.';
+    } else {
+      message = raw || 'Permintaan ditolak server.';
+    }
+
+    return {
+      success: false,
+      offline: kind !== 'rejected',   // boleh diantre & dikirim ulang
+      kind: kind,
+      status: (err && err.status) || 0,
+      message: message,
+      detail: raw
+    };
   },
 
   read(resource, opts)            { return this._request(resource, 'read', null, opts); },
@@ -75,8 +128,8 @@ const CrudApi = {
     let from = 0;
     const all = [];
     for (let guard = 0; guard < 100; guard++) {
-      const { data, error } = await SupabaseClient.from(table).select('*').range(from, from + PAGE - 1);
-      if (error) throw error;
+      const { data, error, status } = await SupabaseClient.from(table).select('*').range(from, from + PAGE - 1);
+      if (error) throw this._withStatus(error, status);
       const rows = data || [];
       all.push.apply(all, rows);
       if (rows.length < PAGE) break;
@@ -95,8 +148,8 @@ const CrudApi = {
     // Insert dipecah agar payload tidak terlalu besar untuk satu request.
     const CHUNK = 500;
     for (let i = 0; i < items.length; i += CHUNK) {
-      const { error } = await SupabaseClient.from(table).insert(items.slice(i, i + CHUNK));
-      if (error) throw error;
+      const { error, status } = await SupabaseClient.from(table).insert(items.slice(i, i + CHUNK));
+      if (error) throw this._withStatus(error, status);
     }
     return { success: true, message: 'Data dibuat', count: items.length, data: payload };
   },
@@ -117,8 +170,8 @@ const CrudApi = {
     }
     const patch = Object.assign({}, p);
     delete patch.id; delete patch.resource; delete patch.op;
-    const { data, error } = await SupabaseClient.from(table).update(patch).eq(idCol, p.id).select();
-    if (error) throw error;
+    const { data, error, status } = await SupabaseClient.from(table).update(patch).eq(idCol, p.id).select();
+    if (error) throw this._withStatus(error, status);
     if (!data || data.length === 0) return { success: false, message: 'Data tidak ditemukan' };
     return { success: true, message: 'Data diperbarui', data: data[0] };
   },
@@ -126,8 +179,8 @@ const CrudApi = {
   /** DELETE — baris dengan Id_... yang cocok dihapus. */
   async _crudDelete(table, idCol, payload) {
     const p = payload || {};
-    const { data, error } = await SupabaseClient.from(table).delete().eq(idCol, p.id).select();
-    if (error) throw error;
+    const { data, error, status } = await SupabaseClient.from(table).delete().eq(idCol, p.id).select();
+    if (error) throw this._withStatus(error, status);
     if (!data || data.length === 0) return { success: false, message: 'Data tidak ditemukan' };
     return { success: true, message: 'Data dihapus' };
   },
@@ -140,8 +193,8 @@ const CrudApi = {
   },
 
   async _settingsRead() {
-    const { data, error } = await SupabaseClient.from('Settings').select('*');
-    if (error) throw error;
+    const { data, error, status } = await SupabaseClient.from('Settings').select('*');
+    if (error) throw this._withStatus(error, status);
     const obj = {};
     (data || []).forEach((row) => { obj[row.key] = row.value; });
     return { success: true, data: obj };
@@ -153,8 +206,8 @@ const CrudApi = {
     const keys = Object.keys(patch);
     if (keys.length) {
       const rows = keys.map((k) => ({ key: k, value: String(patch[k]) }));
-      const { error } = await SupabaseClient.from('Settings').upsert(rows, { onConflict: 'key' });
-      if (error) throw error;
+      const { error, status } = await SupabaseClient.from('Settings').upsert(rows, { onConflict: 'key' });
+      if (error) throw this._withStatus(error, status);
     }
     return await this._settingsRead();
   },
@@ -186,8 +239,17 @@ const CrudApi = {
         size: file.size
       };
     } catch (err) {
-      console.error('uploadFile error:', err);
-      return { success: false, message: 'Gagal mengunggah berkas: ' + (err && err.message ? err.message : err) };
+      const kind = this._net('classify', err) || 'transport';
+      if (kind === 'transport') this._net('reportFailure', err); else this._net('reportSuccess');
+      console.error('uploadFile error [' + kind + ']:', err);
+      return {
+        success: false,
+        offline: kind !== 'rejected',
+        kind: kind,
+        message: kind === 'transport'
+          ? 'Berkas gagal diunggah karena server tidak dapat dihubungi. Periksa koneksi internet Anda.'
+          : 'Gagal mengunggah berkas: ' + (err && err.message ? err.message : err)
+      };
     }
   },
 
@@ -198,8 +260,10 @@ const CrudApi = {
       if (error) throw error;
       return { success: true };
     } catch (err) {
-      console.warn('removeFile error:', err);
-      return { success: false, message: err && err.message };
+      const kind = this._net('classify', err) || 'transport';
+      if (kind === 'transport') this._net('reportFailure', err); else this._net('reportSuccess');
+      console.warn('removeFile error [' + kind + ']:', err);
+      return { success: false, offline: kind !== 'rejected', kind: kind, message: err && err.message };
     }
   },
 
