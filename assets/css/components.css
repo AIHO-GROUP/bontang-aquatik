@@ -104,15 +104,35 @@
 /* ---------------- OFFLINE BANNER ---------------- */
 #ui-offline-banner {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-banner);
-  transform: translateY(110%); transition: transform .3s ease;
-  /* Banner ini SELALU ada di DOM dan hanya digeser keluar layar saat online.
+  /* Banner ini SELALU ada di DOM dan hanya disembunyikan saat online.
      Elemen yang digeser tetap menangkap sentuhan, sehingga versi
      tersembunyinya diam-diam menelan ketukan pada menu bawah yang berada
      di belakangnya — menu "Peserta" dan "Jadwal" terasa mati tanpa sebab.
-     Sentuhan baru diaktifkan ketika banner benar-benar tampil. */
+     Sentuhan baru diaktifkan ketika banner benar-benar tampil.
+
+     MENGGESER SAJA TIDAK CUKUP UNTUK MENYEMBUNYIKAN.
+     Di layar kecil banner diangkat setinggi navigasi bawah
+     (bottom: var(--tumpuk-nav) ~64 px, lihat components-v2.css), sedangkan
+     translateY(110%) hanya menggeser sejauh 110% TINGGI BANNER ITU SENDIRI
+     (~46 px). Sisa ~18 px membuatnya tetap terlihat, sehingga pesan offline
+     seolah menempel permanen di ponsel — padahal di desktop, yang tidak
+     memakai navigasi bawah, jarak gesernya kebetulan cukup dan banner
+     lenyap sempurna. Karena itu keadaan tersembunyi dinyatakan SECARA
+     EKSPLISIT dengan opacity + visibility: hasilnya tidak lagi bergantung
+     pada seberapa tinggi banner atau seberapa jauh ia diangkat. */
+  transform: translateY(110%);
+  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
+  transition: transform .3s ease, opacity .25s ease, visibility 0s linear .3s;
   background: var(--color-warning); color: #1a1300; text-align: center;
   font-size: 13px; font-weight: 600; padding: 9px 14px;
   padding-bottom: calc(9px + env(safe-area-inset-bottom, 0px));
 }
-#ui-offline-banner.show { transform: translateY(0); pointer-events: auto; }
+#ui-offline-banner.show {
+  transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: transform .3s ease, opacity .25s ease, visibility 0s;
+}

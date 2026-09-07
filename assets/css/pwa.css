@@ -697,9 +697,19 @@
   gap: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: var(--z-banner);
-  transition: transform 0.3s ease;
+  /* Sama seperti #ui-offline-banner: keadaan tersembunyi tidak boleh
+     bergantung pada jarak geser, yang di sini hanya terpaut beberapa
+     piksel dari tinggi pilnya sendiri. */
+  opacity: 0;
+  visibility: hidden;
+  transition: transform 0.3s ease, opacity 0.25s ease, visibility 0s linear 0.3s;
 }
-.pwa-offline.show { transform: translateX(-50%) translateY(0); }
+.pwa-offline.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  visibility: visible;
+  transition: transform 0.3s ease, opacity 0.25s ease, visibility 0s;
+}
 .pwa-offline-dot {
   width: 8px; height: 8px;
   background: #fff;
