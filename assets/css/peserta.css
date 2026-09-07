@@ -401,3 +401,161 @@
 .settings-action { margin-top: 10px; }
 .contact-channel-row { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
 .nav-settings-btn { display: inline-flex; align-items: center; justify-content: center; }
+/* =====================================================================
+   GRAFIK PERKEMBANGAN RAPOR
+   =====================================================================
+   Empat panel kecil, satu per gaya renang, masing-masing berisi SATU
+   garis. Karena tidak ada dua garis dalam satu bidang, warna tidak perlu
+   membedakan seri — sian dipakai untuk data, jingga hanya untuk menyorot
+   catatan terbaik dan terakhir.
+
+   Nilai warna di bawah ini bukan hasil membalik warna tema terang: versi
+   gelap dipilih dan diuji tersendiri terhadap latar kartu gelap, sehingga
+   kontras dan jarak antarwarnanya tetap aman bagi pembaca dengan buta
+   warna merah-hijau maupun biru-kuning. */
+.rapor-chart {
+  --chart-line: #0891B2;
+  --chart-accent: #EA580C;
+  --chart-grid: var(--color-border);
+  --chart-ink: var(--color-text-secondary);
+}
+[data-theme="dark"] .rapor-chart {
+  --chart-line: #0EA5C9;
+  --chart-accent: #E2701A;
+}
+
+.rapor-chart__head {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px; margin-bottom: 12px;
+}
+.rapor-chart__heading {
+  margin: 0; font-size: 15px; font-weight: 700; color: var(--color-text-heading);
+}
+.rapor-chart__tabs {
+  display: inline-flex; padding: 3px; gap: 3px;
+  background: var(--color-bg-section);
+  border: 1px solid var(--color-border); border-radius: 999px;
+}
+.rapor-chart__tab {
+  border: none; background: none; cursor: pointer; font: inherit;
+  font-size: 12px; font-weight: 600; color: var(--color-text-secondary);
+  padding: 7px 13px; border-radius: 999px; transition: var(--transition);
+  min-height: 34px;
+}
+.rapor-chart__tab:hover { color: var(--color-text-heading); }
+.rapor-chart__tab.is-active { background: var(--chart-line); color: #fff; }
+.rapor-chart__tab:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+@media (pointer: coarse) { .rapor-chart__tab { padding: 10px 15px; min-height: 44px; } }
+
+/* Kartu angka penting: dibaca lebih dulu daripada grafiknya sendiri. */
+.rapor-chart__sorot {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;
+}
+.rapor-chart__stat {
+  flex: 1 1 150px; padding: 10px 13px; border-radius: var(--radius-md);
+  background: var(--color-bg-section); border: 1px solid var(--color-border);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.rapor-chart__stat span { font-size: 11.5px; color: var(--color-text-secondary); }
+.rapor-chart__stat strong { font-size: 18px; color: var(--color-text-heading); font-variant-numeric: tabular-nums; }
+.rapor-chart__stat em { font-size: 11.5px; color: var(--color-text-secondary); font-style: normal; }
+.rapor-chart__stat.is-baik strong { color: var(--chart-accent); }
+
+.rapor-chart__grid-panel {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+.rapor-chart__panel {
+  margin: 0; padding: 10px 8px 6px; border-radius: var(--radius-md);
+  background: var(--color-card); border: 1px solid var(--color-border);
+  min-width: 0;
+}
+.rapor-chart__judul {
+  font-size: 12.5px; font-weight: 700; color: var(--color-text-heading);
+  padding: 0 4px 4px; letter-spacing: .2px;
+}
+.rapor-chart__svgwrap { position: relative; }
+.rapor-chart__svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+/* Garis kisi dibuat samar agar data tetap menjadi elemen paling tegas. */
+.rapor-chart__grid { stroke: var(--chart-grid); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.rapor-chart__tick { fill: var(--chart-ink); font-size: 8.5px; font-family: inherit; }
+.rapor-chart__line {
+  stroke: var(--chart-line); stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+/* Cincin selebar warna kartu memisahkan titik dari garis saat berdempetan. */
+.rapor-chart__dot {
+  fill: var(--chart-line); stroke: var(--color-card); stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.rapor-chart__dot.is-sorot { fill: var(--chart-accent); }
+.rapor-chart__nilai {
+  fill: var(--color-text-heading); font-size: 9.5px; font-weight: 700;
+  font-family: inherit; font-variant-numeric: tabular-nums;
+  /* Halo setebal 3 px berwarna panel: garis data yang lewat di belakang
+     angka terputus rapi, jadi label tetap terbaca tanpa perlu digeser
+     keluar bidang gambar. */
+  paint-order: stroke fill;
+  stroke: var(--color-card); stroke-width: 3px; stroke-linejoin: round;
+}
+.rapor-chart__crosshair {
+  stroke: var(--chart-accent); stroke-width: 1; stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke; opacity: .7;
+}
+.rapor-chart__hit { cursor: pointer; }
+
+.rapor-chart__tip {
+  position: absolute; top: 2px; transform: translateX(-50%);
+  background: var(--color-text-heading); color: var(--color-bg);
+  border-radius: var(--radius-sm); padding: 4px 8px;
+  font-size: 11px; line-height: 1.35; white-space: nowrap;
+  display: flex; flex-direction: column; align-items: center;
+  pointer-events: none; box-shadow: var(--shadow-md);
+}
+.rapor-chart__tip strong { font-variant-numeric: tabular-nums; }
+.rapor-chart__tip span { opacity: .75; font-size: 10px; }
+
+/* Panel tanpa data: judul tetap di atas seperti panel berisi grafik,
+   hanya keterangannya yang di tengah — supaya deretan judul gaya renang
+   sejajar dan matanya tidak perlu mencari. */
+.rapor-chart__panel--kosong {
+  min-height: 118px; display: flex; flex-direction: column;
+}
+.rapor-chart__panel--kosong .rapor-chart__kosong {
+  flex: 1; display: grid; place-items: center;
+}
+.rapor-chart__kosong,
+.rapor-chart__catatan {
+  margin: 0; padding: 4px; font-size: 11.5px; color: var(--color-text-secondary); text-align: center;
+}
+
+/* Legenda tetap ada meski hanya satu warna data: pembaca perlu tahu apa
+   arti titik jingga sebelum menafsirkan grafiknya. */
+.rapor-chart__legend {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin: 12px 0 4px; font-size: 11.5px; color: var(--color-text-secondary);
+}
+.rapor-chart__key {
+  width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto; margin-left: 6px;
+}
+.rapor-chart__key:first-child { margin-left: 0; }
+.rapor-chart__key--line { background: var(--chart-line); }
+.rapor-chart__key--sorot { background: var(--chart-accent); }
+.rapor-chart__hint {
+  margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--color-text-secondary);
+}
+
+/* Tabel riwayat — padanan angka dari grafik. */
+.rapor-table--riwayat td:first-child { white-space: nowrap; }
+.rapor-delta { font-weight: 700; font-variant-numeric: tabular-nums; }
+.rapor-delta.is-baik { color: var(--color-success); }
+.rapor-delta.is-turun { color: var(--color-danger); }
+
+@media (max-width: 560px) {
+  .rapor-chart__grid-panel { grid-template-columns: 1fr; }
+  .rapor-chart__head { flex-direction: column; align-items: flex-start; }
+  .rapor-chart__tabs { width: 100%; justify-content: space-between; }
+  .rapor-chart__tab { flex: 1 1 0; text-align: center; }
+}

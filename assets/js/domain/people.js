@@ -994,7 +994,7 @@ Object.assign(BizLogic, {
     return {
       enrollment: this.getEnrollments(idPeserta).length,
       kehadiran: Store.kehadiranOfPeserta(idPeserta).length,
-      rapor: Store.raporOf(idPeserta) ? 1 : 0,
+      rapor: Store.raporListOf(idPeserta).length,
       jadwalPersonal: jadwalPersonal.length
     };
   },
@@ -1025,7 +1025,9 @@ Object.assign(BizLogic, {
     }
 
     const kehadiran = Store.kehadiranOfPeserta(p.id).slice();
-    const rapor = Store.raporOf(p.id);
+    // Seluruh riwayat penilaian, bukan hanya yang terbaru — satu peserta
+    // kini dapat memiliki banyak baris Rapor.
+    const raporList = Store.raporListOf(p.id).slice();
     const jadwalPersonal = Store.jadwal().filter((j) => j.Id_Peserta === p.id);
     const enrollments = this.getEnrollments(p.id).slice();
 
@@ -1033,8 +1035,8 @@ Object.assign(BizLogic, {
       const r = await persist('kehadiran', 'delete', { id: k.Id_Kehadiran });
       if (!r.success) return BizUtil.fail('Gagal menghapus data kehadiran. Penghapusan dihentikan.');
     }
-    if (rapor) {
-      const r = await persist('rapor', 'delete', { id: rapor.Id_Rapor });
+    for (const rp of raporList) {
+      const r = await persist('rapor', 'delete', { id: rp.Id_Rapor });
       if (!r.success) return BizUtil.fail('Gagal menghapus rapor. Penghapusan dihentikan.');
     }
     for (const j of jadwalPersonal) {
@@ -1061,7 +1063,7 @@ Object.assign(BizLogic, {
 
     await Promise.all([].concat(
       kehadiran.map((k) => cacheRemove('Kehadiran', k.Id_Kehadiran)),
-      rapor ? [cacheRemove('Rapor', rapor.Id_Rapor)] : [],
+      raporList.map((rp) => cacheRemove('Rapor', rp.Id_Rapor)),
       jadwalPersonal.map((j) => cacheRemove('Jadwal', j.Id_Jadwal)),
       enrollments.map((e) => cacheRemove('Enrollment', e.Id_Enrollment)),
       [cacheRemove('Peserta', p.id)]

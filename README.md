@@ -24,7 +24,9 @@ assets/js/
 │   ├── wa.js              Template pesan WhatsApp berisi identitas peserta
 │   ├── numbering.js       Nomor peserta DDMMYY + urut 4 digit
 │   ├── schedule-engine.js Aturan jadwal, pembuatan otomatis, status waktu
-│   └── paginator.js       Pagination sisi frontend
+│   ├── paginator.js       Pagination sisi frontend
+│   ├── rapor-stat.js      Parsing mm.ss.ms + ringkasan perkembangan rapor
+│   └── rapor-chart.js     Grafik perkembangan waktu (SVG murni, tanpa pustaka)
 │
 ├── db.js / crud-api.js / sync.js    Cache lokal & transport data
 │
@@ -98,6 +100,35 @@ ke mode otomatis. Tidak ada penulisan berkala ke database.
 Identitas peserta dikunci pada nama + tanggal lahir + WhatsApp. Peserta lama
 yang ingin kembali **tidak** membuat akun baru; sistem menambahkan baris
 `Enrollment` baru sehingga riwayat absensi dan rapor tetap menyatu.
+
+### Rapor menyimpan riwayat, satu entri per tanggal
+Tabel `Rapor` menyimpan BANYAK baris per peserta, satu untuk tiap tanggal
+penilaian; rapor yang berlaku adalah entri terbaru. Menyimpan pada hari yang
+sama dengan penilaian terakhir dianggap **koreksi** (baris diperbarui,
+riwayat tidak bertambah); menyimpan pada hari berbeda membuat **entri baru**.
+
+Aturan ini dipilih agar pelatih tidak perlu memilih mode apa pun: memperbaiki
+salah ketik beberapa menit setelah menyimpan tidak mengotori grafik dengan
+titik palsu, sedangkan penilaian di sesi berikutnya otomatis menjadi titik
+baru. Nilai gaya yang tidak diisi ulang diwarisi dari penilaian sebelumnya
+supaya garis grafik tidak terputus hanya karena gaya itu belum diukur lagi.
+
+Halaman peserta menampilkan grafik perkembangan (empat panel, satu per gaya
+renang) **hanya bila ada minimal dua penilaian**. Panel admin tidak
+menampilkan grafik — pelatih cukup melihat jumlah penilaian per peserta.
+
+### Satu skala z-index untuk seluruh aplikasi
+Lapisan tumpang tindih diatur lewat token `--z-*` di `global.css`
+(sticky 100 → dropdown 300 → navigasi bawah 500 → tombol bantuan 600 →
+banner 700 → dialog 1000 → loader 1100 → notifikasi 1200). Sebelumnya tiap
+berkas memilih angkanya sendiri dan `.modal-backdrop` terdefinisi dua kali
+dengan nilai berbeda, sehingga di panel admin dialog berada di BAWAH navigasi
+bawah. Jangan menulis angka z-index baru — pakai token yang ada.
+
+Elemen mengambang di tepi bawah layar (navigasi bawah, banner offline, banner
+"lihat sebagai", tombol bantuan) tidak diadu lewat z-index melainkan
+ditumpuk lewat variabel `--tumpuk-*`, karena menaikkan lapisan hanya membuat
+yang di atas menutupi yang di bawah.
 
 ### Pembayaran membatasi otorisasi, bukan autentikasi
 Peserta yang belum lunas **tetap dapat masuk**. Yang dibatasi adalah akses
@@ -206,7 +237,7 @@ langsung menerima kode terbaru:
 
 ```bash
 # ganti stempel lama dengan tanggal rilis baru di seluruh berkas HTML
-sed -i 's/?v=20260906e/?v=20260910/g' *.html
+sed -i 's/?v=20260907c/?v=20260910/g' *.html
 ```
 
 Naikkan juga `VERSION` di `service-worker.js` agar cache lama dibuang.

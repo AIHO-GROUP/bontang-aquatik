@@ -65,8 +65,19 @@ const Store = {
       kehadiranByPeserta.get(k.Id_Peserta).push(k);
     });
 
+    /* Rapor kini berupa RIWAYAT: satu peserta dapat memiliki banyak baris,
+       satu per tanggal penilaian. Indeks menyimpan seluruh baris (urut dari
+       terlama ke terbaru) agar grafik perkembangan tidak perlu memindai
+       ulang tabel, sementara raporOf() tetap mengembalikan penilaian
+       TERBARU — itulah yang dimaksud "rapor peserta" di seluruh UI lama. */
     const raporByPeserta = new Map();
-    this.data.Rapor.forEach((r) => raporByPeserta.set(r.Id_Peserta, r));
+    this.data.Rapor.forEach((r) => {
+      if (!raporByPeserta.has(r.Id_Peserta)) raporByPeserta.set(r.Id_Peserta, []);
+      raporByPeserta.get(r.Id_Peserta).push(r);
+    });
+    raporByPeserta.forEach((list) => {
+      list.sort((a, b) => String(a.Tanggal_Rapor || '').localeCompare(String(b.Tanggal_Rapor || '')));
+    });
 
     this._index = { byPeserta, byPelatih, enrollByPeserta, kehadiranByJadwal, kehadiranByPeserta, raporByPeserta };
     return this._index;
@@ -79,7 +90,13 @@ const Store = {
   enrollmentsOf(idPeserta) { return this.index().enrollByPeserta.get(idPeserta) || []; },
   kehadiranOfJadwal(idJadwal) { return this.index().kehadiranByJadwal.get(idJadwal) || []; },
   kehadiranOfPeserta(idPeserta) { return this.index().kehadiranByPeserta.get(idPeserta) || []; },
-  raporOf(idPeserta) { return this.index().raporByPeserta.get(idPeserta) || null; },
+  /** Seluruh riwayat penilaian peserta, terlama -> terbaru. */
+  raporListOf(idPeserta) { return this.index().raporByPeserta.get(idPeserta) || []; },
+  /** Penilaian TERBARU peserta; null bila belum pernah dinilai. */
+  raporOf(idPeserta) {
+    const list = this.raporListOf(idPeserta);
+    return list.length ? list[list.length - 1] : null;
+  },
 
   /** Panggil setelah mutasi lokal agar indeks tidak basi. */
   invalidate() { this._index = null; },

@@ -15,12 +15,12 @@
   <link rel="icon" type="image/png" href="assets/images/logo.webp">
   <link rel="apple-touch-icon" sizes="180x180" href="assets/images/logo.webp">
 
-  <link rel="stylesheet" href="assets/css/global.css?v=20260906k">
-  <link rel="stylesheet" href="assets/css/navbar.css?v=20260906k">
-  <link rel="stylesheet" href="assets/css/admin.css?v=20260906k">
-  <link rel="stylesheet" href="assets/css/pwa.css?v=20260906k">
-  <link rel="stylesheet" href="assets/css/components.css?v=20260906k">
-  <link rel="stylesheet" href="assets/css/components-v2.css?v=20260906k">
+  <link rel="stylesheet" href="assets/css/global.css?v=20260907c">
+  <link rel="stylesheet" href="assets/css/navbar.css?v=20260907c">
+  <link rel="stylesheet" href="assets/css/admin.css?v=20260907c">
+  <link rel="stylesheet" href="assets/css/pwa.css?v=20260907c">
+  <link rel="stylesheet" href="assets/css/components.css?v=20260907c">
+  <link rel="stylesheet" href="assets/css/components-v2.css?v=20260907c">
 </head>
 <body class="has-bottom-nav">
 
@@ -42,8 +42,13 @@
       <symbol id="ic-news" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14H10M15 18H10M10 6h8v4h-8V6z"/>
       </symbol>
-      <symbol id="ic-whistle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M17 3a4 4 0 0 1 0 8h-6l-4.5 4.5a3.5 3.5 0 1 1-2-6.4"/><circle cx="17" cy="7" r="1.2"/>
+      <!-- Tab Pelatih memakai ikon orang, sekeluarga dengan ic-person pada tab
+           Peserta: keduanya menampilkan daftar PENGGUNA aplikasi, hanya
+           perannya yang berbeda. Ikon peluit dahulu menggambarkan profesi,
+           bukan isi tab, sehingga terbaca lepas dari ikon tab lainnya. -->
+      <symbol id="ic-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16.5 21v-1.8a4 4 0 0 0-4-4H6.4a4 4 0 0 0-4 4V21"/><circle cx="9.45" cy="7.2" r="3.8"/>
+        <path d="M21.6 21v-1.8a4 4 0 0 0-3-3.87M16.2 3.5a4 4 0 0 1 0 7.75"/>
       </symbol>
       <symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="7.5"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -96,8 +101,8 @@
         <button class="tab" role="tab" aria-selected="false" data-tab="berita" data-icon="ic-news">
           <svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg><span>Berita</span>
         </button>
-        <button class="tab" role="tab" aria-selected="false" data-tab="pelatih" data-icon="ic-whistle" data-role="superadmin" hidden>
-          <svg class="ic" aria-hidden="true"><use href="#ic-whistle"/></svg><span>Pelatih</span>
+        <button class="tab" role="tab" aria-selected="false" data-tab="pelatih" data-icon="ic-users" data-role="superadmin" hidden>
+          <svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg><span>Pelatih</span>
         </button>
       </div>
 
@@ -134,7 +139,7 @@
           </div>
         </div>
 
-        <p class="table-hint" id="peserta-hint"></p>
+        <!-- <p class="table-hint" id="peserta-hint"></p> -->
 
         <div class="table-wrap">
           <table class="data-table">
@@ -312,7 +317,7 @@
           </button>
         </div>
 
-        <p class="table-hint" id="rapor-hint"></p>
+        <!-- <p class="table-hint" id="rapor-hint"></p> -->
 
         <div class="table-wrap">
           <table class="data-table">
@@ -362,7 +367,7 @@
       </div>
 
       <!-- ============== PELATIH (koordinator) ============== -->
-      <div class="tab-content" id="tab-pelatih" role="tabpanel">
+      <div class="tab-content" id="tab-pelatih" role="tabpanel" data-role="superadmin" hidden>
         <div class="toolbar">
           <div class="toolbar-left">
             <div class="search-wrap">
@@ -399,36 +404,37 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.0/jspdf.plugin.autotable.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
 
-  <script src="assets/js/config.js?v=20260906k"></script>
+  <script src="assets/js/config.js?v=20260907c"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="assets/js/supabase-client.js?v=20260906k"></script>
-  <script src="assets/js/lib/wita.js?v=20260906k"></script>
-  <script src="assets/js/lib/password.js?v=20260906k"></script>
-  <script src="assets/js/lib/wa.js?v=20260906k"></script>
-  <script src="assets/js/lib/numbering.js?v=20260906k"></script>
-  <script src="assets/js/lib/schedule-engine.js?v=20260906k"></script>
-  <script src="assets/js/lib/paginator.js?v=20260906k"></script>
-  <script src="assets/js/db.js?v=20260906k"></script>
-  <script src="assets/js/crud-api.js?v=20260906k"></script>
-  <script src="assets/js/sync.js?v=20260906k"></script>
-  <script src="assets/js/domain/base.js?v=20260906k"></script>
-  <script src="assets/js/domain/people.js?v=20260906k"></script>
-  <script src="assets/js/domain/training.js?v=20260906k"></script>
-  <script src="assets/js/domain/content.js?v=20260906k"></script>
-  <script src="assets/js/auth.js?v=20260906k"></script>
-  <script src="assets/js/utils.js?v=20260906k"></script>
-  <script src="assets/js/components/ui.js?v=20260906k"></script>
-  <script src="assets/js/excel-export.js?v=20260906k"></script>
-  <script src="assets/js/pdf-rapor.js?v=20260906k"></script>
-  <script src="assets/js/admin/core.js?v=20260906k"></script>
-  <script src="assets/js/admin/peserta.js?v=20260906k"></script>
-  <script src="assets/js/admin/jadwal.js?v=20260906k"></script>
-  <script src="assets/js/admin/kehadiran.js?v=20260906k"></script>
-  <script src="assets/js/admin/rapor.js?v=20260906k"></script>
-  <script src="assets/js/admin/berita.js?v=20260906k"></script>
-  <script src="assets/js/admin/pelatih.js?v=20260906k"></script>
-  <script src="assets/js/admin/settings.js?v=20260906k"></script>
-  <script src="assets/js/admin/boot.js?v=20260906k"></script>
-  <script src="assets/js/pwa.js?v=20260906k"></script>
+  <script src="assets/js/supabase-client.js?v=20260907c"></script>
+  <script src="assets/js/lib/wita.js?v=20260907c"></script>
+  <script src="assets/js/lib/rapor-stat.js?v=20260907c"></script>
+  <script src="assets/js/lib/password.js?v=20260907c"></script>
+  <script src="assets/js/lib/wa.js?v=20260907c"></script>
+  <script src="assets/js/lib/numbering.js?v=20260907c"></script>
+  <script src="assets/js/lib/schedule-engine.js?v=20260907c"></script>
+  <script src="assets/js/lib/paginator.js?v=20260907c"></script>
+  <script src="assets/js/db.js?v=20260907c"></script>
+  <script src="assets/js/crud-api.js?v=20260907c"></script>
+  <script src="assets/js/sync.js?v=20260907c"></script>
+  <script src="assets/js/domain/base.js?v=20260907c"></script>
+  <script src="assets/js/domain/people.js?v=20260907c"></script>
+  <script src="assets/js/domain/training.js?v=20260907c"></script>
+  <script src="assets/js/domain/content.js?v=20260907c"></script>
+  <script src="assets/js/auth.js?v=20260907c"></script>
+  <script src="assets/js/utils.js?v=20260907c"></script>
+  <script src="assets/js/components/ui.js?v=20260907c"></script>
+  <script src="assets/js/excel-export.js?v=20260907c"></script>
+  <script src="assets/js/pdf-rapor.js?v=20260907c"></script>
+  <script src="assets/js/admin/core.js?v=20260907c"></script>
+  <script src="assets/js/admin/peserta.js?v=20260907c"></script>
+  <script src="assets/js/admin/jadwal.js?v=20260907c"></script>
+  <script src="assets/js/admin/kehadiran.js?v=20260907c"></script>
+  <script src="assets/js/admin/rapor.js?v=20260907c"></script>
+  <script src="assets/js/admin/berita.js?v=20260907c"></script>
+  <script src="assets/js/admin/pelatih.js?v=20260907c"></script>
+  <script src="assets/js/admin/settings.js?v=20260907c"></script>
+  <script src="assets/js/admin/boot.js?v=20260907c"></script>
+  <script src="assets/js/pwa.js?v=20260907c"></script>
 </body>
 </html>

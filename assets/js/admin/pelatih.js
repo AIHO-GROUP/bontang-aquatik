@@ -209,6 +209,12 @@ const AdminPelatih = (function () {
     );
     if (!ok) return;
 
+    /* Tombol ini berada di tab Pelatih, dan tab itu khusus koordinator.
+       Setelah menyamar sebagai pelatih biasa, tab tersebut tidak lagi
+       tersedia — maka tab tersimpan dikosongkan supaya halaman terbuka di
+       daftar Peserta, bukan pada tab yang sudah tidak boleh dibuka. */
+    try { sessionStorage.removeItem('admin_tab'); } catch (e) { /* abaikan */ }
+
     Auth.impersonate(p.Role === CONFIG.ROLES.SUPERADMIN ? CONFIG.ROLES.SUPERADMIN : CONFIG.ROLES.ADMIN, {
       id: p.Id_Pelatih,
       nama: p.Nama || p.Username,

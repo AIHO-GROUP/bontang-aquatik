@@ -623,7 +623,9 @@ svg {
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 1000;
+  /* Memakai token bersama; nilai tetap di sini dahulu menimpa nilai dari
+     global.css dan menempatkan dialog di bawah navigasi bawah. */
+  z-index: var(--z-overlay);
   display: none;
   align-items: center; justify-content: center;
   padding: 20px;
@@ -1171,7 +1173,7 @@ select.form-control { cursor: pointer; }
 }
 .peserta-chip button:hover { background: var(--color-danger); }
 .peserta-picker__dropdown {
-  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 50;
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: var(--z-dropdown);
   background: var(--color-card); border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
   max-height: 240px; overflow-y: auto; display: none;

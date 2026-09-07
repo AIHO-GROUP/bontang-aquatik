@@ -8,7 +8,7 @@
   --nav-tile-r: 14px;
   --nav-panel-r: 20px;
 
-  position: sticky; top: 0; z-index: 100;
+  position: sticky; top: 0; z-index: var(--z-sticky);
   isolation: isolate;
   color: var(--color-text-heading);
   background: var(--color-card);

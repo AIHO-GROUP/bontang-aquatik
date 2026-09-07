@@ -1,10 +1,16 @@
 document.addEventListener('DOMContentLoaded', async () => {
+  /* Kerangka halaman dipasang lebih dulu, baru data dari jaringan.
+     Sebelumnya footer dipasang SETELAH `await Sync.init(...)`, sehingga satu
+     kesalahan di bagian mana pun sebelum baris itu — atau sinkronisasi yang
+     lambat — membuat footer tidak pernah muncul sama sekali. Bagian yang
+     tidak bergantung pada data server tidak boleh menunggu data server. */
   Utils.mountNavbar('home');
+  Utils.mountFooter();
   initHeroFX();
   renderScheduleSection();
+
   await Sync.init(['Berita']);
   loadBerita();
-  Utils.mountFooter();
 
   document.querySelectorAll('a[href^="#"]').forEach(a => {
     a.addEventListener('click', (e) => {

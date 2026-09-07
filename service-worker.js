@@ -18,7 +18,7 @@
             sudah punya lapisan cache sendiri di IndexedDB.
    ================================================================ */
 
-const VERSION       = 'v2.0.0';
+const VERSION       = 'v2.1.2';
 const STATIC_CACHE  = 'akuatik-static-' + VERSION;
 const RUNTIME_CACHE = 'akuatik-runtime-' + VERSION;
 

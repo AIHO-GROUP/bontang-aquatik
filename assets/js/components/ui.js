@@ -150,10 +150,19 @@
       backdrop.addEventListener('click', e => { if (e.target === backdrop) close(); });
     }
 
-    // Auto-focus elemen pertama yang bisa difokus
+    /* Fokus awal.
+       Isian formulir memang layak difokuskan — pengguna dapat langsung
+       mengetik. Tetapi bila dialog tidak berisi isian, memfokuskan tombol
+       pertama yang kebetulan ada justru menyesatkan: cincin fokus muncul
+       pada, misalnya, tab pemilih jarak grafik seolah-olah itu yang harus
+       ditekan. Dalam keadaan itu fokus diletakkan pada dialognya sendiri —
+       pembaca layar tetap membacakan judul dan isi, tombol Esc tetap
+       bekerja, dan tidak ada kendali yang tersorot tanpa alasan. */
     setTimeout(() => {
-      const f = dialog.querySelector('input,select,textarea,button:not(.modal-close)');
-      if (f) f.focus();
+      const isian = dialog.querySelector('input:not([type="hidden"]),select,textarea');
+      if (isian) { isian.focus(); return; }
+      dialog.setAttribute('tabindex', '-1');
+      dialog.focus({ preventScroll: true });
     }, 60);
 
     return { el: dialog, backdrop, close };

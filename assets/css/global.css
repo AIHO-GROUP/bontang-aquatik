@@ -42,6 +42,27 @@
   --shadow-lg: 0 16px 40px rgba(15, 42, 68, 0.15);
   --shadow-glow: 0 0 0 3px rgba(22, 154, 196, 0.20);
 
+  /* ============== SKALA LAPISAN (z-index) ==============
+     Satu tangga, dideklarasikan sekali, dipakai seluruh berkas CSS.
+     Sebelumnya tiap berkas memilih angkanya sendiri dan .modal-backdrop
+     sempat terdefinisi dua kali dengan nilai berbeda; yang dimuat
+     belakangan menang, sehingga di panel admin dialog justru berada DI
+     BAWAH navigasi bawah dan tombol bantuan. Angka di bawah ini berjarak
+     lebar supaya lapisan baru dapat disisipkan tanpa menggeser yang lain.
+
+     Urutannya mengikuti aturan sederhana: apa pun yang menuntut perhatian
+     penuh menutupi apa yang hanya berdiri di latar. Dialog menutupi
+     navigasi dan banner; indikator proses menutupi dialog; notifikasi
+     berada paling atas karena ia harus terbaca dalam keadaan apa pun. */
+  --z-sticky: 100;      /* navbar yang menempel di atas          */
+  --z-dropdown: 300;    /* menu profil, daftar saran, popover    */
+  --z-bottom-nav: 500;  /* navigasi bawah pada layar kecil       */
+  --z-fab: 600;         /* tombol bantuan mengambang             */
+  --z-banner: 700;      /* banner PWA, offline, "lihat sebagai"  */
+  --z-overlay: 1000;    /* latar gelap dialog & sejenisnya       */
+  --z-loader: 1100;     /* indikator proses, menutupi dialog     */
+  --z-toast: 1200;      /* notifikasi ringkas, paling atas       */
+
   --overlay-bg: rgba(11, 15, 18, 0.45);
   --auth-overlay-1: rgba(22, 154, 196, 0.10);
   --auth-overlay-2: rgba(255, 106, 0, 0.06);
@@ -243,6 +264,17 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--color-pr
 .form-section-title { font-size: 14px; color: var(--color-primary); margin-bottom: 14px;
   text-transform: uppercase; letter-spacing: 1.2px; }
 .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+/* Butir grid punya min-width: auto secara bawaan, artinya ia menolak
+   menyusut lebih kecil daripada lebar alami isinya. Isian email dan grup
+   nomor WhatsApp (awalan +62 ditambah kolom isian) lebar alaminya lebih
+   dari 350 px, sehingga di layar 360 px keduanya menembus keluar kolom
+   dan tepi kanannya terpotong — tanpa memunculkan gulir horizontal, jadi
+   kerusakannya tidak kasatmata sampai ada yang mencoba mengetik di sana.
+   min-width: 0 mengizinkan butir menyusut mengikuti kolomnya. */
+.form-grid-2 > * { min-width: 0; }
+.form-grid-2 .form-control,
+.form-grid-2 .phone-input-group { max-width: 100%; }
+.phone-input-group > input { min-width: 0; }
 @media (max-width: 600px) { .form-grid-2 { grid-template-columns: 1fr; } }
 
 /* ============== CARDS ============== */
@@ -293,7 +325,7 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--color-pr
 
 /* ============== NOTIF ============== */
 #notif-container {
-  position: fixed; top: 90px; right: 20px; z-index: 9999;
+  position: fixed; top: 90px; right: 20px; z-index: var(--z-toast);
   display: flex; flex-direction: column; gap: 10px; max-width: 360px;
 }
 .notif {
@@ -310,10 +342,15 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--color-pr
 .notif.fadeout { animation: fadeOut 0.3s ease forwards; }
 @keyframes fadeOut { to { transform: translateX(120%); opacity: 0; } }
 
-/* ============== LOADER ============== */
-/* .loader-overlay {
+/* ============== LOADER ==============
+   Utils.showLoader() menyisipkan .loader-overlay ke <body>. Gaya di bawah
+   ini sempat dinonaktifkan sehingga elemen itu tercipta tanpa tampilan
+   apa pun — proses panjang seperti membuat arsip ZIP jadi tidak memberi
+   tanda sedang berjalan. Lapisannya di atas dialog karena ia memang
+   dipakai saat menyimpan dari dalam dialog. */
+.loader-overlay {
   position: fixed; inset: 0; background: var(--overlay-bg); backdrop-filter: blur(4px);
-  display: none; align-items: center; justify-content: center; z-index: 10000;
+  display: none; align-items: center; justify-content: center; z-index: var(--z-loader);
 }
 .loader-overlay.active { display: flex; }
 .spinner {
@@ -322,13 +359,14 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--color-pr
   border-top-color: var(--color-primary); border-right-color: var(--color-accent);
   border-radius: 50%; animation: spin 0.8s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } } */
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
 
 /* ============== MODAL ============== */
 .modal-backdrop {
   position: fixed; inset: 0; background: var(--overlay-bg); backdrop-filter: blur(6px);
   display: none; align-items: center; justify-content: center;
-  z-index: 9998; padding: 20px;
+  z-index: var(--z-overlay); padding: 20px;
 }
 .modal-backdrop.active { display: flex; animation: fadeIn 0.2s ease; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -521,6 +559,10 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--color-pr
 .pwa-banner {
   position: fixed; bottom: 20px; left: 50%;
   transform: translateX(-50%) translateY(120%);
+  /* Sama seperti banner offline: saat tersembunyi ia digeser, bukan
+     dilepas dari DOM, jadi sentuhan harus dimatikan agar tidak menghalangi
+     apa pun di belakangnya. */
+  pointer-events: none;
   width: calc(100% - 32px); max-width: 460px;
   background: var(--color-card);
   border: 1.5px solid var(--color-border);
@@ -528,11 +570,11 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--color-pr
   box-shadow: var(--shadow-lg);
   padding: 18px 20px 18px 18px;
   display: flex; gap: 14px; align-items: flex-start;
-  z-index: 9000;
+  z-index: var(--z-banner);
   transition: transform .35s cubic-bezier(.4, 0, .2, 1), opacity .25s;
   opacity: 0;
 }
-.pwa-banner.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.pwa-banner.show { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
 .pwa-banner-icon {
   flex: 0 0 44px; width: 44px; height: 44px;
   background: var(--gradient-hero); color: white;

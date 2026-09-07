@@ -78,8 +78,11 @@ const HelpWidget = (function () {
     root.style.top = '';
     root.style.right = '';
     root.style.bottom = '';
+    // Posisi bawaan ada di sudut kanan bawah (lihat .help-widget di CSS),
+    // jadi kedua kelas arah dipasang sejak awal: panel bantuan harus
+    // terbuka KE ATAS dan KE KIRI, bukan menembus tepi kanan layar.
     root.classList.add('is-bottom');
-    root.classList.remove('is-right');
+    root.classList.add('is-right');
   }
 
   function terapkanPosisi(left, top) {

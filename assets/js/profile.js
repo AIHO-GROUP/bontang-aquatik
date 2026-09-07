@@ -118,7 +118,7 @@
     if (document.getElementById('profile-readonly-note')) return;
     form.insertAdjacentHTML('afterbegin',
       '<div class="app-banner app-banner--warning app-banner--inline" id="profile-readonly-note" role="status">' +
-        '<div class="app-banner__icon" aria-hidden="true">👁️</div>' +
+        '<div class="app-banner__icon app-banner__icon--svg" aria-hidden="true">' + UI.ICONS.eyeOpen + '</div>' +
         '<div class="app-banner__body"><strong>Mode lihat sebagai (baca-saja)</strong>' +
         '<span>Anda sedang melihat halaman ini sebagai peserta. Data tidak dapat diubah dari sini — ' +
         'kembali ke akun Anda untuk melakukan perubahan.</span></div>' +

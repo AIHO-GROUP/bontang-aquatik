@@ -19,6 +19,11 @@ const Admin = (function () {
     'stroke-width="' + (sw || 1.8) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     paths + '</svg>';
 
+  /* Hanya ikon yang benar-benar dirender panel admin. Definisi yang tidak
+     lagi dipanggil — termasuk ikon peluit untuk tab Pelatih — dihapus,
+     bukan disimpan "kalau-kalau dipakai": SVG mati tetap ikut terunduh
+     setiap kali halaman dibuka dan menyesatkan siapa pun yang mencari
+     ikon mana yang sebenarnya tampil. */
   const Icons = {
     pencil:   () => wrap('<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>'),
     trash:    () => wrap('<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>'),
@@ -26,20 +31,16 @@ const Admin = (function () {
     link:     () => wrap('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>'),
     plus:     () => wrap('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>', 2),
     check:    () => wrap('<polyline points="20 6 9 17 4 12"/>', 2.2),
-    x:        () => wrap('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', 2),
     clock:    () => wrap('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
-    info:     () => wrap('<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'),
     download: () => wrap('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'),
     mail:     () => wrap('<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>'),
     wallet:   () => wrap('<path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/>'),
     user:     () => wrap('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
-    users:    () => wrap('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>'),
     school:   () => wrap('<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>'),
     pool:     () => wrap('<path d="M2 20c2 0 2-1 4-1s2 1 4 1 2-1 4-1 2 1 4 1 2-1 4-1"/><path d="M2 16c2 0 2-1 4-1s2 1 4 1 2-1 4-1 2 1 4 1 2-1 4-1"/><path d="M6 12V6a4 4 0 0 1 4-4M18 12V6a4 4 0 0 0-4-4"/>'),
     whatsapp: () => wrap('<path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 21l2.2-5.2A8.5 8.5 0 1 1 21 11.5z"/>'),
     swap:     () => wrap('<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'),
     star:     () => wrap('<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'),
-    calendar: () => wrap('<rect x="3" y="4" width="18" height="18" rx="2.5"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'),
     paperclip:() => wrap('<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>')
   };
 
@@ -67,11 +68,44 @@ const Admin = (function () {
 
   /* ---------------- Navigasi tab ---------------- */
 
+  const TAB_DEFAULT = 'peserta';
+
   function visibleTabs() {
     return Array.from(document.querySelectorAll('#admin-tabs .tab')).filter((t) => !t.hidden);
   }
 
-  function selectTab(name) {
+  /**
+   * Sebuah tab hanya dapat dibuka bila TOMBOL dan PANEL isinya sama-sama
+   * terlihat untuk peran yang sedang aktif. Keduanya harus diperiksa:
+   * applyRoleVisibility() menyembunyikan elemen [data-role="superadmin"],
+   * dan tab khusus koordinator memberi atribut itu pada tombol maupun
+   * panelnya.
+   */
+  function tabTersedia(name) {
+    const tombol = document.querySelector('#admin-tabs .tab[data-tab="' + name + '"]');
+    const panel = document.getElementById('tab-' + name);
+    return !!tombol && !tombol.hidden && !!panel && !panel.hidden;
+  }
+
+  /**
+   * Tab yang benar-benar dapat ditampilkan, dengan urutan pilihan:
+   * yang diminta -> Peserta -> tab terlihat pertama.
+   *
+   * Ini yang mencegah panel tampil KOSONG saat koordinator masuk sebagai
+   * pelatih: tab terakhir yang ia buka bisa saja tab khusus koordinator
+   * (Pelatih atau Pengaturan) yang kini tersembunyi. Tanpa penyaringan
+   * ini, panel tersembunyi itu tetap diberi kelas .active sehingga layar
+   * terlihat kosong sampai pengguna menekan salah satu menu.
+   */
+  function resolveTab(name) {
+    if (name && tabTersedia(name)) return name;
+    if (tabTersedia(TAB_DEFAULT)) return TAB_DEFAULT;
+    const pertama = visibleTabs()[0];
+    return pertama ? pertama.dataset.tab : TAB_DEFAULT;
+  }
+
+  function selectTab(requested) {
+    const name = resolveTab(requested);
     activeTab = name;
     document.querySelectorAll('#admin-tabs .tab').forEach((t) => {
       const on = t.dataset.tab === name;
@@ -119,10 +153,13 @@ const Admin = (function () {
       if (b) selectTab(b.dataset.tab);
     });
 
-    let restored = 'peserta';
+    // Tab terakhir hanya dipulihkan bila masih boleh dibuka oleh peran
+    // yang sedang aktif; selectTab() sendiri sudah menyaring, tetapi
+    // membacanya di sini membuat maksudnya terbaca jelas.
+    let restored = TAB_DEFAULT;
     try {
       const saved = sessionStorage.getItem('admin_tab');
-      if (saved && document.getElementById('tab-' + saved)) restored = saved;
+      if (saved && tabTersedia(saved)) restored = saved;
     } catch (e) { /* abaikan */ }
     selectTab(restored);
   }
@@ -133,6 +170,12 @@ const Admin = (function () {
     document.querySelectorAll('[data-role="superadmin"]').forEach((el) => { el.hidden = !isSuper; });
     document.body.classList.toggle('is-superadmin', isSuper);
     document.body.classList.toggle('is-admin', !isSuper);
+
+    // Peran dapat berubah saat sesi berjalan (promosi/demosi, atau
+    // koordinator mulai "lihat sebagai" pelatih). Bila tab yang sedang
+    // terbuka jadi tidak boleh diakses, pindahkan sekarang juga daripada
+    // meninggalkan panel kosong di layar.
+    if (document.getElementById('admin-tabs') && !tabTersedia(activeTab)) selectTab(TAB_DEFAULT);
   }
 
   /* ---------------- Helper UI ---------------- */

@@ -168,7 +168,7 @@ code.code-warn {
 
 @media (max-width: 820px) {
   .bottom-nav {
-    display: grid; position: fixed; left: 0; right: 0; bottom: 0; z-index: 9000;
+    display: grid; position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-bottom-nav);
     grid-auto-flow: column; grid-auto-columns: 1fr;
     background: var(--color-card);
     border-top: 1px solid var(--color-border);
@@ -214,7 +214,7 @@ code.code-warn {
 .usermenu__caret { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; opacity: .6; }
 
 .usermenu__panel {
-  position: absolute; top: calc(100% + 10px); right: 0; z-index: 9500;
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: var(--z-dropdown);
   min-width: 250px; padding: 8px;
   background: var(--color-card); border: 1px solid var(--color-border);
   border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
@@ -264,6 +264,12 @@ code.code-warn {
 .app-banner--warning { border-color: var(--badge-warning-border); background: var(--badge-warning-bg); }
 .app-banner--inline { margin-bottom: 16px; }
 .app-banner__icon { font-size: 22px; line-height: 1; flex: 0 0 auto; }
+/* Ikon mata pada banner "lihat sebagai" sengaja berupa SVG, bukan emoji:
+   gambar emoji mata berbeda-beda antar sistem operasi dan terlalu mencolok
+   untuk sebuah penanda status. SVG-nya mewarisi warna teks banner, dan
+   ukurannya dikunci di sini karena SVG mengabaikan font-size. */
+.app-banner__icon--svg { display: inline-flex; align-items: center; }
+.app-banner__icon--svg svg { width: 21px; height: 21px; display: block; }
 .app-banner__body { flex: 1 1 240px; display: flex; flex-direction: column; gap: 3px; }
 .app-banner__body strong { font-size: 14.5px; color: var(--color-text-heading); }
 .app-banner__body span { font-size: 13px; color: var(--color-text-main); line-height: 1.5; }
@@ -281,7 +287,7 @@ code.code-warn {
    MODAL PEMBERITAHUAN PERUBAHAN SISTEM
    ===================================================================== */
 .notice-backdrop {
-  position: fixed; inset: 0; z-index: 10060;
+  position: fixed; inset: 0; z-index: var(--z-overlay);
   display: grid; place-items: center; padding: 20px;
   background: var(--overlay-bg); animation: noticeIn .22s ease;
 }
@@ -308,7 +314,7 @@ code.code-warn {
    ===================================================================== */
 .impersonation-banner {
   position: fixed; left: 50%; transform: translateX(-50%);
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 10030;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: var(--z-banner);
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center;
   width: min(560px, calc(100vw - 24px));
   padding: 11px 16px; border-radius: 999px;
@@ -329,7 +335,6 @@ code.code-warn {
 .impersonation-banner__btn:hover { background: var(--color-accent-hover); }
 body.has-impersonation-banner { padding-bottom: 70px; }
 @media (max-width: 820px) {
-  body.has-impersonation-banner.has-bottom-nav .impersonation-banner { bottom: 78px; }
 }
 
 /* =====================================================================
@@ -671,11 +676,12 @@ body.has-impersonation-banner { padding-bottom: 70px; }
    TOMBOL BANTUAN MENGAMBANG (FAQ + WhatsApp)
    Berada di sudut kiri bawah dan dapat digeser pengguna.
    ===================================================================== */
-/* Posisi bawaan: sudut kiri bawah. JavaScript hanya menimpanya dengan
-   left/top inline setelah pengguna menggeser tombol. */
+/* Posisi bawaan: sudut KANAN bawah — jangkauan alami ibu jari kanan saat
+   ponsel dipegang satu tangan. JavaScript hanya menimpanya dengan left/top
+   inline setelah pengguna menggeser tombol sendiri. */
 .help-widget {
-  position: fixed; z-index: 9800;
-  left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  position: fixed; z-index: var(--z-fab);
+  right: 16px; left: auto; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
 .help-widget.is-dragging { cursor: grabbing; user-select: none; }
 .help-widget.is-dragging .help-fab { transition: none; box-shadow: var(--shadow-lg); }
@@ -767,10 +773,115 @@ body.has-impersonation-banner { padding-bottom: 70px; }
 .help-panel__foot .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .help-panel__foot .btn svg { width: 17px; height: 17px; }
 
-/* Beri ruang agar tombol tidak menabrak banner "lihat sebagai". */
-body.has-impersonation-banner .help-widget { z-index: 10020; }
+/* =====================================================================
+   TUMPUKAN ELEMEN MENGAMBANG DI TEPI BAWAH LAYAR
+   =====================================================================
+   Empat hal berebut sudut bawah layar: navigasi bawah, banner offline,
+   banner "lihat sebagai", dan tombol bantuan. Menaikkan z-index tidak
+   menyelesaikan apa pun di sini — yang di atas hanya MENUTUPI yang di
+   bawah, dan menu pertama navigasi bawah jadi tidak bisa ditekan sama
+   sekali. Maka yang diatur POSISINYA, bukan lapisannya.
+
+   Tingginya dinyatakan sebagai variabel, lalu tiap elemen diletakkan di
+   atas jumlah tinggi elemen di bawahnya. Dengan begitu urutan tumpukan
+   tetap benar pada keempat kombinasi yang mungkin terjadi — ada/tidaknya
+   navigasi bawah, sedang/tidak offline, sedang/tidak "lihat sebagai" —
+   tanpa perlu menulis aturan untuk setiap kombinasi satu per satu.
+
+   Nilai bawaan nol, jadi di layar lebar yang tidak memakai navigasi bawah
+   perhitungannya runtuh menjadi jarak 16 px yang lama. */
+:root {
+  --tumpuk-nav: 0px;      /* tinggi navigasi bawah      */
+  --tumpuk-offline: 0px;  /* tinggi banner offline      */
+  --tumpuk-samar: 0px;    /* tinggi banner lihat-sebagai */
+  --tumpuk-jarak: 16px;   /* jarak dari elemen di bawah */
+}
+body.has-impersonation-banner { --tumpuk-samar: 52px; }
+/* :has() dipakai karena banner offline dimunculkan JS lewat kelas .show
+   pada elemennya sendiri, tanpa menyentuh <body>. Peramban yang belum
+   mendukungnya hanya kembali ke perilaku lama (banner saling menimpa
+   sesaat saat offline), bukan rusak. */
+body:has(#ui-offline-banner.show) { --tumpuk-offline: 42px; }
+
+.impersonation-banner {
+  bottom: calc(var(--tumpuk-nav) + var(--tumpuk-offline) + var(--tumpuk-jarak)
+               + env(safe-area-inset-bottom, 0px));
+}
+.help-widget {
+  bottom: calc(var(--tumpuk-nav) + var(--tumpuk-offline) + var(--tumpuk-samar)
+               + var(--tumpuk-jarak) + env(safe-area-inset-bottom, 0px));
+}
+#ui-offline-banner {
+  bottom: calc(var(--tumpuk-nav) + env(safe-area-inset-bottom, 0px));
+}
+.pwa-banner {
+  bottom: calc(var(--tumpuk-nav) + var(--tumpuk-offline) + var(--tumpuk-samar)
+               + 20px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 820px) {
+  /* Tinggi navigasi bawah: padding 6+6 ditambah tinggi minimum tombol 52 px. */
+  body.has-bottom-nav { --tumpuk-nav: calc(64px + env(safe-area-inset-bottom, 0px)); }
+  /* Area aman perangkat sudah termasuk di --tumpuk-nav, jangan dihitung dua kali. */
+  body.has-bottom-nav .impersonation-banner,
+  body.has-bottom-nav .help-widget,
+  body.has-bottom-nav #ui-offline-banner,
+  body.has-bottom-nav .pwa-banner { padding-bottom: revert; }
+  body.has-bottom-nav #ui-offline-banner { padding-bottom: 9px; }
+  /* Ruang bawah halaman menyesuaikan tinggi tumpukan agar baris terakhir
+     tabel tidak tertutup apa pun. */
+  body.has-bottom-nav.has-impersonation-banner { padding-bottom: 132px; }
+}
 
 @media (max-width: 480px) {
   .help-fab { width: 50px; height: 50px; }
   .help-fab svg { width: 24px; height: 24px; }
+}
+
+/* =====================================================================
+   SASARAN SENTUH
+   =====================================================================
+   Tombol ikon berukuran 34 px nyaman diklik dengan tetikus, tetapi di
+   bawah ambang yang nyaman untuk ibu jari. Pembesaran hanya diterapkan
+   pada perangkat berpenunjuk kasar (layar sentuh), sehingga tabel di
+   desktop tidak ikut melebar. Jarak antartombol dinaikkan bersamaan agar
+   sasaran yang membesar tidak saling menimpa — itulah yang membuat orang
+   menekan tombol hapus padahal bermaksud menekan tombol ubah. */
+@media (pointer: coarse) {
+  .icon-btn { width: 42px; height: 42px; }
+  .action-btns { gap: 10px; }
+  .ui-segment button { padding: 10px 16px; }
+  .ui-segment--sm button { padding: 8px 13px; }
+  .modal-close { min-width: 42px; min-height: 42px; }
+}
+
+/* Ikon di dalam pengalih tampilan disamakan ukurannya dengan teksnya. */
+.ui-segment button { display: inline-flex; align-items: center; gap: 6px; }
+.ui-segment button .ic { width: 15px; height: 15px; flex: 0 0 auto; }
+
+/* Dialog yang difokuskan sebagai wadah (lihat UI.modal) tidak boleh
+   menampilkan cincin fokus — fokusnya bersifat teknis, bukan penanda
+   kendali yang siap ditekan. */
+.modal[tabindex="-1"]:focus { outline: none; }
+
+/* =====================================================================
+   SASARAN SENTUH TAUTAN AJAKAN
+   =====================================================================
+   Tautan sebaris di dalam kalimat boleh setinggi barisnya, tetapi tautan
+   yang berdiri sendiri sebagai ajakan bertindak — "Daftar di sini",
+   "Kirim Email" — hanya setinggi 19-20 px. Di layar sentuh itu terlalu
+   tipis untuk dijangkau ibu jari dengan pasti. Padding vertikal
+   menaikkannya melewati ambang nyaman tanpa mengubah tata letak, karena
+   tautannya inline-block di dalam baris teks yang sudah punya ruang. */
+.auth-footer a,
+.contact-card a,
+.auth-body a:not(.btn) {
+  display: inline-block;
+  padding-block: 6px;
+  min-height: 24px;
+}
+@media (pointer: coarse) {
+  .auth-footer a,
+  .contact-card a,
+  .auth-body a:not(.btn) { padding-block: 11px; }
 }

@@ -268,11 +268,11 @@ const CONFIG = {
     title: 'Pembaruan Sistem Bontang Akuatik',
     body: [
       'Aplikasi baru saja diperbarui dengan beberapa perubahan penting:',
-      '<strong>Login tetap bisa</strong> walau pembayaran belum lunas. Hanya jadwal latihan yang terkunci sampai pembayaran dikonfirmasi.',
-      '<strong>Password lebih aman</strong>: minimal 6 karakter dengan huruf kapital, angka, dan karakter unik.',
+      // '<strong>Login tetap bisa</strong> walau pembayaran belum lunas. Hanya jadwal latihan yang terkunci sampai pembayaran dikonfirmasi.',
+      '<strong>Password lebih aman</strong>: Gunakan kombinasi minimal 6 karakter dengan huruf kapital, angka, dan karakter unik.',
       '<strong>Lupa password kini memakai kode OTP email</strong> agar akun Anda lebih terlindungi.',
-      '<strong>Riwayat pelatihan tersimpan per periode</strong>. Perpanjangan tidak lagi menghapus riwayat lama.',
-      '<strong>Jadwal buka dan tutup otomatis</strong> sesuai jam latihan (WITA), tanpa perlu menunggu admin.',
+      '<strong>Anda dapat perpanjang peride latihan</strong> tanpa perlu membuat akun baru dan data lama Anda tetap tersimpan.',
+      '<strong>Jadwal aktif otomatis</strong> sesuai jam latihan (WITA) dan akan ditutup setelah latihan.',
       'Seluruh data dan akun lama Anda tetap utuh. Tidak perlu mendaftar ulang.'
     ]
   }

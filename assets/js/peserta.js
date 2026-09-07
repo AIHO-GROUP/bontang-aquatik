@@ -795,17 +795,34 @@ function openBeritaPesertaModal(i) {
 /* =====================================================================
    RAPOR
    ===================================================================== */
+/**
+ * Modal rapor peserta.
+ *
+ * Isinya tiga lapis, berurutan dari yang paling sering dicari:
+ *   1. Penilaian TERBARU — angka resmi yang tercetak di rapor PDF.
+ *   2. Grafik perkembangan — hanya muncul bila riwayat memang ada.
+ *   3. Tabel riwayat — padanan angka dari grafik, sekaligus jalan masuk
+ *      bagi pembaca layar dan siapa pun yang lebih suka membaca tabel.
+ *
+ * Grafik SENGAJA tidak dirender untuk peserta yang belum pernah dinilai:
+ * bidang kosong berlabel sumbu hanya menimbulkan kesan ada yang rusak.
+ * RaporChart.mount() mengembalikan false pada keadaan itu dan wadahnya
+ * tetap tersembunyi.
+ */
 function openRaporModal() {
   const id = Auth.getId();
   const raporRes = BizLogic.getRaporPeserta({ id_peserta: id });
   const pesertaRes = BizLogic.getDataLengkapPeserta({ id_peserta: id });
+  const riwayatRes = BizLogic.getRiwayatRapor({ id_peserta: id });
 
   if (pesertaRes.success) pesertaLengkapCache = pesertaRes.data;
   raporCache = raporRes.data || null;
+  const riwayat = (riwayatRes && riwayatRes.data) || [];
 
   let body;
   if (!raporCache) {
-    body = '<div class="empty-state"><div class="icon">📝</div><h3>Rapor Belum Tersedia</h3>' +
+    body = '<div class="empty-state"><div class="icon">📝</div>' +
+           '<h3>Rapor Belum Tersedia</h3>' +
            '<p>Rapor akan tersedia setelah pelatih mengisi data evaluasi Anda.</p></div>';
   } else {
     const r = raporCache;
@@ -813,17 +830,18 @@ function openRaporModal() {
     const periode = getSemesterPeriode(pesertaLengkapCache && pesertaLengkapCache.Tanggal_Mulai);
 
     const rows = CONFIG.GAYA_RENANG.map((g, i) =>
-      '<tr><td>' + (i + 1) + '</td><td>' + g.label + '</td>' +
-      '<td>' + fmt(r['Waktu_25_' + g.key + '_Pelampung']) + '</td>' +
-      '<td>' + fmt(r['Waktu_25_' + g.key]) + '</td>' +
-      '<td>' + fmt(r['Waktu_50_' + g.key]) + '</td></tr>').join('');
+      '<tr><td>' + (i + 1) + '</td><td>' + Utils.escapeHtml(g.label) + '</td>' +
+      '<td>' + Utils.escapeHtml(fmt(r['Waktu_25_' + g.key + '_Pelampung'])) + '</td>' +
+      '<td>' + Utils.escapeHtml(fmt(r['Waktu_25_' + g.key])) + '</td>' +
+      '<td>' + Utils.escapeHtml(fmt(r['Waktu_50_' + g.key])) + '</td></tr>').join('');
 
     body =
       '<div class="rapor-display">' +
         '<div class="rapor-section">' +
           '<h4 class="rapor-section-title">📊 Capaian Hasil Latihan Renang</h4>' +
           '<p class="rapor-periode">Periode: <em>' +
-            WITA.formatDateLong(periode.start) + ' s.d ' + WITA.formatDateLong(periode.end) + '</em></p>' +
+            Utils.escapeHtml(WITA.formatDateLong(periode.start)) + ' s.d ' +
+            Utils.escapeHtml(WITA.formatDateLong(periode.end)) + '</em></p>' +
           '<div class="rapor-table-scroll"><table class="rapor-table">' +
             '<thead><tr><th>NO.</th><th>GAYA RENANG</th>' +
               '<th>25 M<br><small>(Dengan Pelampung)</small></th>' +
@@ -837,6 +855,8 @@ function openRaporModal() {
           '<div class="rapor-field"><label>Deskripsi</label>' +
             '<div class="rapor-value-box tall">' + (Utils.escapeHtml(r.Catatan) || '-') + '</div></div>' +
         '</div>' +
+        '<div class="rapor-section" id="rapor-grafik" hidden></div>' +
+        '<div class="rapor-section" id="rapor-riwayat"></div>' +
         '<p class="rapor-pelatih">Pelatih penilai: <strong>' +
           (Utils.escapeHtml(r.Nama_Pelatih) || '-') + '</strong></p>' +
       '</div>';
@@ -850,6 +870,11 @@ function openRaporModal() {
   });
 
   if (raporCache) {
+    renderRiwayatRapor(m.el.querySelector('#rapor-riwayat'), riwayat);
+    // Grafik dipasang setelah modal ada di DOM agar lebar terpasangnya
+    // sudah final ketika posisi tooltip dihitung.
+    RaporChart.mount(m.el.querySelector('#rapor-grafik'), riwayat, CONFIG.GAYA_RENANG);
+
     const dl = document.createElement('button');
     dl.className = 'btn btn-accent btn-block';
     dl.style.marginTop = '12px';
@@ -857,6 +882,55 @@ function openRaporModal() {
     dl.addEventListener('click', () => downloadRaporPDF(dl));
     m.el.querySelector('.modal-body').appendChild(dl);
   }
+}
+
+/**
+ * Tabel riwayat penilaian.
+ *
+ * Satu baris per penilaian, terbaru di atas, karena itulah yang paling
+ * sering dicari. Kolom "selisih" dihitung terhadap penilaian sebelumnya
+ * pada gaya yang paling banyak datanya, sehingga peserta langsung melihat
+ * apakah ia membaik tanpa harus membandingkan angka sendiri.
+ */
+function renderRiwayatRapor(mount, riwayat) {
+  if (!mount) return;
+  if (!riwayat || riwayat.length < 2) { mount.innerHTML = ''; mount.hidden = true; return; }
+
+  const urut = RaporStat.urutkan(riwayat).slice().reverse();
+  const baris = urut.map((r, i) => {
+    const sebelum = urut[i + 1] || null;
+
+    // Bandingkan pada gaya bebas 25 m tanpa pelampung bila tersedia; itu
+    // patokan yang paling sering diukur ulang di sesi latihan.
+    const kini = RaporStat.parseWaktu(r.Waktu_25_Bebas);
+    const lalu = sebelum ? RaporStat.parseWaktu(sebelum.Waktu_25_Bebas) : null;
+    let delta = '<span class="text-muted">-</span>';
+    if (kini != null && lalu != null) {
+      const selisih = Math.round((kini - lalu) * 100) / 100;
+      const tone = selisih < 0 ? 'is-baik' : (selisih > 0 ? 'is-turun' : '');
+      delta = '<span class="rapor-delta ' + tone + '">' +
+        Utils.escapeHtml(RaporStat.formatSelisih(selisih)) + '</span>';
+    }
+
+    return '<tr>' +
+      '<td>' + Utils.escapeHtml(WITA.formatDate(r.Tanggal_Rapor)) +
+        (i === 0 ? ' <span class="badge badge-success">Terbaru</span>' : '') + '</td>' +
+      '<td>' + (r.Predikat ? Utils.escapeHtml(r.Predikat) : '<span class="text-muted">-</span>') + '</td>' +
+      '<td>' + Utils.escapeHtml(RaporStat.formatWaktu(kini)) + '</td>' +
+      '<td>' + delta + '</td>' +
+      '<td>' + (r.Nama_Pelatih ? Utils.escapeHtml(r.Nama_Pelatih) : '<span class="text-muted">-</span>') + '</td>' +
+    '</tr>';
+  }).join('');
+
+  mount.hidden = false;
+  mount.innerHTML =
+    '<h4 class="rapor-section-title">🗂️ Riwayat Penilaian</h4>' +
+    '<p class="rapor-periode">Kolom selisih membandingkan <em>gaya bebas 25 m tanpa pelampung</em> ' +
+      'dengan penilaian sebelumnya. Angka negatif berarti makin cepat.</p>' +
+    '<div class="rapor-table-scroll"><table class="rapor-table rapor-table--riwayat">' +
+      '<thead><tr><th>Tanggal</th><th>Predikat</th><th>25 M Bebas</th>' +
+        '<th>Selisih</th><th>Pelatih</th></tr></thead>' +
+      '<tbody>' + baris + '</tbody></table></div>';
 }
 
 async function downloadRaporPDF(btn) {

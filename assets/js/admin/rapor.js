@@ -39,6 +39,7 @@ const AdminRapor = (function () {
           catatan: r ? (r.Catatan || '') : '',
           pelatih: r ? (r.nama_pelatih || '') : '',
           tanggal_update: r ? r.Tanggal_Rapor : '',
+          riwayat: r ? (r.riwayat_jumlah || 1) : 0,
           has_rapor: !!r
         };
       });
@@ -147,7 +148,10 @@ const AdminRapor = (function () {
           : '<em class="text-muted">-</em>') + '</td>' +
         '<td>' + (x.tanggal_update
           ? WITA.formatDate(x.tanggal_update) +
-            (x.pelatih ? '<div class="cell-sub">oleh ' + Utils.escapeHtml(x.pelatih) + '</div>' : '')
+            '<div class="cell-sub">' +
+              (x.pelatih ? 'oleh ' + Utils.escapeHtml(x.pelatih) + ' • ' : '') +
+              x.riwayat + ' penilaian' +
+            '</div>'
           : '<em class="text-muted">-</em>') + '</td>' +
         '<td>' + (x.has_rapor
           ? '<span class="rapor-status sudah"><span class="dot"></span>Sudah</span>'
@@ -163,6 +167,9 @@ const AdminRapor = (function () {
     if (!peserta) return;
     const existing = Store.raporOf(idPeserta);
     const signer = BizLogic.getRaporSigner();
+    const jumlahRiwayat = Store.raporListOf(idPeserta).length;
+    const sudahDinilaiHariIni = !!existing &&
+      WITA.toISODate(existing.Tanggal_Rapor) === WITA.toISODate(BizUtil.nowIso());
 
     const waktuRows = CONFIG.GAYA_RENANG.map((gaya, i) => {
       const k = gaya.key.toLowerCase();
@@ -206,10 +213,20 @@ const AdminRapor = (function () {
           Utils.escapeHtml((existing && existing.Catatan) || '') + '</textarea></div>' +
       '<div class="info-banner info-banner--soft"><div aria-hidden="true">✍️</div>' +
         '<p>Rapor akan ditandatangani atas nama <strong>' + Utils.escapeHtml(signer.nama) + '</strong> ' +
-        '(' + Utils.escapeHtml(signer.jabatan) + '). Nama Anda tercatat sebagai pelatih penilai.</p></div>';
+        '(' + Utils.escapeHtml(signer.jabatan) + '). Nama Anda tercatat sebagai pelatih penilai.</p></div>' +
+      // Aturan riwayat dijelaskan tepat di tempat keputusannya diambil,
+      // supaya pelatih tahu kapan simpanannya menjadi titik baru pada
+      // grafik perkembangan peserta dan kapan hanya memperbaiki yang ada.
+      '<div class="info-banner info-banner--soft"><div aria-hidden="true">🗂️</div>' +
+        '<p>' + (sudahDinilaiHariIni
+          ? 'Penilaian hari ini <strong>diperbarui</strong>, riwayat tidak bertambah.'
+          : 'Simpanan ini menjadi <strong>entri riwayat baru</strong> bertanggal hari ini. ' +
+            'Menyimpan ulang di hari yang sama hanya memperbaiki entri tersebut.') +
+        (jumlahRiwayat ? ' Peserta ini memiliki ' + jumlahRiwayat + ' penilaian tercatat.' : '') +
+        '</p></div>';
 
     const m = UI.modal({
-      title: existing ? 'Ubah Rapor' : 'Buat Rapor',
+      title: existing ? (sudahDinilaiHariIni ? 'Perbaiki Penilaian Hari Ini' : 'Penilaian Baru') : 'Buat Rapor',
       size: 'md',
       body,
       actions: [{ label: 'Batal', variant: 'secondary' }]
@@ -218,7 +235,9 @@ const AdminRapor = (function () {
     const save = document.createElement('button');
     save.className = 'btn btn-primary btn-block';
     save.style.marginTop = '12px';
-    save.textContent = existing ? 'Simpan Perubahan' : 'Buat Rapor';
+    save.textContent = existing
+      ? (sudahDinilaiHariIni ? 'Simpan Perbaikan' : 'Simpan Penilaian Baru')
+      : 'Buat Rapor';
     save.addEventListener('click', async () => {
       const predikat = m.el.querySelector('#rp-predikat').value;
       if (!predikat) { UI.toast('Mohon pilih predikat', 'warning'); return; }
@@ -251,9 +270,18 @@ const AdminRapor = (function () {
   }
 
   async function confirmRemove(id) {
-    const ok = await UI.confirm('Hapus rapor ini? Data capaian dan penilaian akan hilang.', {
-      title: 'Hapus Rapor', confirmLabel: 'Ya, hapus', variant: 'danger'
-    });
+    // Yang terhapus adalah SATU entri riwayat, yaitu penilaian terbaru.
+    // Pesannya dibuat menyebut angka agar tidak ada yang mengira seluruh
+    // riwayat peserta ikut hilang.
+    const baris = Store.rapor().find((x) => x.Id_Rapor === id);
+    const sisa = baris ? Store.raporListOf(baris.Id_Peserta).length - 1 : 0;
+    const ok = await UI.confirm(
+      sisa > 0
+        ? 'Hapus penilaian terbaru peserta ini? ' + sisa +
+          ' penilaian sebelumnya tetap tersimpan, dan penilaian terbaru berikutnya yang akan berlaku.'
+        : 'Hapus rapor ini? Data capaian dan penilaian akan hilang.',
+      { title: 'Hapus Penilaian', confirmLabel: 'Ya, hapus', variant: 'danger' }
+    );
     if (!ok) return;
     Utils.showLoader(true);
     const res = await BizLogic.deleteRapor({ id });

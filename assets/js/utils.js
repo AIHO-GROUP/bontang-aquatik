@@ -184,6 +184,7 @@ const Utils = {
 
     let links = '<a href="index.html" class="nav-link ' + (activeRoute === 'home' ? 'active' : '') + '">Beranda</a>';
     let right = '';
+    let aksi = '';
 
     if (session) {
       const isPeserta = session.role === CONFIG.ROLES.PESERTA;
@@ -234,14 +235,27 @@ const Utils = {
           '</div>' +
         '</div>';
     } else {
-      // Tautan "Pendaftaran" sengaja TIDAK ditambahkan di sini: tombol ajakan
-      // "Daftar Sekarang" sudah menuju halaman yang sama, dan dua tautan
-      // dengan tujuan identik membuat navigasi terasa berulang.
-      // Tombol tema diletakkan PALING AKHIR agar berada di ujung kanan,
-      // terpisah dari tautan navigasi.
+      /* Pengunjung yang belum masuk.
+         Tautan "Pendaftaran" sengaja TIDAK ditambahkan di daftar menu:
+         tombol ajakan "Daftar Sekarang" sudah menuju halaman yang sama, dan
+         dua tautan dengan tujuan identik membuat navigasi terasa berulang.
+
+         "Masuk" dan "Daftar Sekarang" ditaruh DI DALAM panel menu, bukan di
+         bilah kanan. Pada layar ponsel, logo + nama klub + dua tombol itu +
+         tombol tema + tombol menu tidak muat dalam satu baris, sehingga
+         bilahnya melebar melewati lebar layar. Di panel menu keduanya
+         mendapat lebar penuh dan lebih mudah ditekan; pada layar >=768px
+         panel menu memang dirender sebagai baris mendatar, jadi tampilannya
+         di desktop tetap sama persis seperti sebelumnya.
+
+         Tombol tema tetap di bilah kanan supaya dapat dijangkau tanpa
+         membuka menu — ia hanya selebar satu ikon dan tidak membuat sesak. */
+      aksi =
+        '<div class="navbar-actions">' +
+          '<a href="login.html" class="nav-link ' + (activeRoute === 'login' ? 'active' : '') + '">Masuk</a>' +
+          '<a href="registrasi.html" class="btn btn-accent btn-sm nav-cta">Daftar Sekarang</a>' +
+        '</div>';
       right =
-        '<a href="login.html" class="nav-link ' + (activeRoute === 'login' ? 'active' : '') + '">Masuk</a>' +
-        '<a href="registrasi.html" class="btn btn-accent btn-sm nav-cta">Daftar Sekarang</a>' +
         '<button type="button" id="theme-switch" class="theme-switch ' + (isDark ? 'is-dark' : '') + '" ' +
                 'aria-label="Ganti tema" aria-checked="' + isDark + '" role="switch">' + ICON.sun + ICON.moon + '</button>';
     }
@@ -257,7 +271,9 @@ const Utils = {
             '</div>' +
             '<span>' + CONFIG.BRAND_NAME + '</span>' +
           '</a>' +
-          '<div class="navbar-menu" id="navbar-menu"><div class="navbar-links">' + links + '</div></div>' +
+          '<div class="navbar-menu" id="navbar-menu">' +
+            '<div class="navbar-links">' + links + '</div>' + aksi +
+          '</div>' +
           '<div class="navbar-end">' + right +
             '<button class="navbar-toggle" id="navbar-toggle" aria-label="Menu" aria-expanded="false">☰</button>' +
           '</div>' +

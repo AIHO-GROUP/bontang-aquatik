@@ -440,7 +440,7 @@
             intro: 'Tambahkan Bontang Akuatik ke Layar Utama lewat Safari.',
             steps: [
               { icon: this._svgShare(), text: 'Ketuk ikon <strong>Bagikan</strong> di bilah bawah Safari.' },
-              { icon: '➕',              text: 'Gulir dan pilih <strong>Tambah ke Layar Utama</strong>.' },
+              { icon: '+',               text: 'Gulir dan pilih <strong>Tambah ke Layar Utama</strong>.' },
               { icon: '✓',               text: 'Ketuk <strong>Tambah</strong> di kanan atas untuk konfirmasi.' }
             ]
           };
@@ -450,7 +450,7 @@
           intro: `Di iOS, pemasangan dilakukan lewat menu Bagikan ${e.browserName}.`,
           steps: [
             { icon: this._svgShare(), text: 'Ketuk ikon <strong>Bagikan</strong> pada bilah browser.' },
-            { icon: '➕',              text: 'Pilih <strong>Tambah ke Layar Utama</strong>.' },
+            { icon: '+',               text: 'Pilih <strong>Tambah ke Layar Utama</strong>.' },
             { icon: '✓',               text: 'Ketuk <strong>Tambah</strong> untuk konfirmasi.' }
           ]
         };

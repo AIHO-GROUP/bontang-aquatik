@@ -628,33 +628,67 @@ Object.assign(BizLogic, {
      6. RAPOR
      ================================================================= */
 
+  /**
+   * Rapor yang berlaku saat ini = penilaian TERBARU peserta.
+   * Riwayat lengkapnya diambil lewat getRiwayatRapor().
+   */
   getRaporPeserta(p) {
     const rapor = Store.raporOf(p.id_peserta);
     if (!rapor) return BizUtil.ok('Rapor belum diunggah pelatih', { data: null });
 
+    return BizUtil.ok('', { data: this._lengkapiRapor(rapor) });
+  },
+
+  /** Tambahkan nama pelatih penilai & penanda tangan ke satu baris rapor. */
+  _lengkapiRapor(rapor) {
     const pelatih = rapor.Id_Pelatih ? Store.findPelatih(rapor.Id_Pelatih) : null;
     const signer = this.getRaporSigner();
-    return BizUtil.ok('', {
-      data: Object.assign({}, rapor, {
-        Tanggal_Rapor: rapor.Tanggal_Rapor,
-        // Pemberi nilai (pelatih) — informasi internal.
-        Nama_Pelatih: pelatih ? (pelatih.Nama || pelatih.Username) : '',
-        // Penanda tangan rapor SELALU identitas koordinator klub.
-        Nama_Penandatangan: signer.nama,
-        Jabatan_Penandatangan: signer.jabatan
-      })
+    return Object.assign({}, rapor, {
+      Tanggal_Rapor: rapor.Tanggal_Rapor,
+      // Pemberi nilai (pelatih) — informasi internal.
+      Nama_Pelatih: pelatih ? (pelatih.Nama || pelatih.Username) : '',
+      // Penanda tangan rapor SELALU identitas koordinator klub.
+      Nama_Penandatangan: signer.nama,
+      Jabatan_Penandatangan: signer.jabatan
     });
   },
 
-  /** Daftar rapor untuk panel admin, digabung dengan peserta yang belum punya. */
+  /**
+   * RIWAYAT PENILAIAN seorang peserta, urut dari yang paling lama.
+   *
+   * Dipakai halaman peserta untuk menampilkan tabel riwayat dan grafik
+   * perkembangan. Sengaja mengembalikan array kosong (bukan kegagalan)
+   * bila peserta belum pernah dinilai, sehingga pemanggil cukup memeriksa
+   * panjangnya untuk memutuskan menyembunyikan grafik.
+   */
+  getRiwayatRapor(p) {
+    const list = Store.raporListOf(p.id_peserta);
+    return BizUtil.ok('', { data: list.map((r) => this._lengkapiRapor(r)) });
+  },
+
+  /**
+   * Daftar rapor untuk panel admin: SATU baris per peserta, berisi
+   * penilaian terbaru, ditambah jumlah entri riwayatnya. Menampilkan
+   * seluruh baris riwayat di tabel admin hanya akan membuat satu peserta
+   * muncul berkali-kali tanpa menambah informasi yang berguna.
+   */
   getAllRapor() {
-    const data = Store.rapor().map((r) => {
+    const terbaru = new Map();
+    Store.rapor().forEach((r) => {
+      const lama = terbaru.get(r.Id_Peserta);
+      if (!lama || String(r.Tanggal_Rapor || '') >= String(lama.Tanggal_Rapor || '')) {
+        terbaru.set(r.Id_Peserta, r);
+      }
+    });
+
+    const data = Array.from(terbaru.values()).map((r) => {
       const ps = Store.findPeserta(r.Id_Peserta);
       const pelatih = r.Id_Pelatih ? Store.findPelatih(r.Id_Pelatih) : null;
       return Object.assign({}, r, {
         nama_peserta: ps ? ps.Nama_Lengkap : '(peserta dihapus)',
         kelas: ps ? ps.Kelas : '',
-        nama_pelatih: pelatih ? (pelatih.Nama || pelatih.Username) : ''
+        nama_pelatih: pelatih ? (pelatih.Nama || pelatih.Username) : '',
+        riwayat_jumlah: Store.raporListOf(r.Id_Peserta).length
       });
     });
     return BizUtil.ok('', { data });
@@ -675,10 +709,20 @@ Object.assign(BizLogic, {
       waktu_25_punggung_pelampung: 'Waktu_25_Punggung_Pelampung'
     };
 
+    /* SATU ENTRI RIWAYAT PER TANGGAL.
+       Menyimpan pada hari yang sama dengan penilaian terakhir dianggap
+       KOREKSI — barisnya diperbarui, riwayat tidak bertambah. Menyimpan
+       pada hari berbeda membuat ENTRI BARU sehingga perkembangan peserta
+       terekam. Aturan ini dipilih supaya pelatih tidak perlu memilih mode
+       apa pun: memperbaiki salah ketik beberapa menit setelah menyimpan
+       tidak akan mengotori grafik dengan titik palsu, sedangkan penilaian
+       di sesi berikutnya otomatis menjadi titik baru. */
     const existing = Store.raporOf(p.id_peserta);
     const nowIso = BizUtil.nowIso();
+    const hariIni = WITA.toISODate(nowIso);
+    const koreksiHariIni = !!existing && WITA.toISODate(existing.Tanggal_Rapor) === hariIni;
 
-    if (existing) {
+    if (existing && koreksiHariIni) {
       const patch = { id: existing.Id_Rapor, Tanggal_Rapor: nowIso };
       Object.keys(fieldMap).forEach((k) => { if (p[k] !== undefined) patch[fieldMap[k]] = p[k]; });
       if (p.id_pelatih) patch.Id_Pelatih = p.id_pelatih;
@@ -688,7 +732,7 @@ Object.assign(BizLogic, {
       Object.assign(existing, patch);
       delete existing.id;
       await cachePut('Rapor', existing);
-      return BizUtil.ok('Rapor diperbarui');
+      return BizUtil.ok('Penilaian hari ini diperbarui');
     }
 
     const row = {
@@ -703,11 +747,23 @@ Object.assign(BizLogic, {
     row.Predikat = p.predikat || '';
     row.Catatan = p.catatan || '';
 
+    /* Nilai yang tidak diisi pelatih pada penilaian baru diwarisi dari
+       penilaian sebelumnya. Tanpa ini, catatan gaya yang belum diukur
+       ulang akan terbaca sebagai kosong dan memutus garis grafik, seolah
+       peserta kehilangan kemampuan yang sebenarnya tidak pernah diuji
+       ulang di sesi tersebut. */
+    if (existing) {
+      Object.keys(fieldMap).forEach((k) => {
+        const kolom = fieldMap[k];
+        if (!row[kolom] && existing[kolom]) row[kolom] = existing[kolom];
+      });
+    }
+
     const r = await persist('rapor', 'create', row);
     if (!r.success) return BizUtil.fail(r.message || 'Gagal membuat rapor');
     Store.rapor().push(row);
     await cachePut('Rapor', row);
-    return BizUtil.ok('Rapor dibuat');
+    return BizUtil.ok(existing ? 'Penilaian baru ditambahkan ke riwayat' : 'Rapor dibuat');
   },
 
   async deleteRapor(p) {
